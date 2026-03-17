@@ -1,14 +1,27 @@
 services:
+  # The Database: Stores hourly energy data and percentages
   postgres:
-    image: postgres:latest
+    image: postgres:17-alpine
+    container_name: energy-db
     environment:
-      POSTGRES_DB: energy_db
+      POSTGRES_DB: energy_community
+      POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
+  # The Message Broker: Passes messages between producers, users, and services
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:4-management
+    container_name: energy-mq
     ports:
-      - "5672:5672"   # Messaging port
-      - "15672:15672" # Management UI
+      - "5672:5672"   # The port your Java apps will use
+      - "15672:15672" # The Web UI port (to see your messages)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+volumes:
+  postgres_data:

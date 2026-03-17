@@ -9,6 +9,7 @@
         <module name="rest-api" />
         <module name="shared" />
         <module name="usage-service" />
+        <module name="energy-gui" />
         <module name="energy-user" />
         <module name="percentage-service" />
         <module name="energy-producer" />
