@@ -44,13 +44,13 @@ Wir müssen nicht mühsam Datenbanken installieren. Docker erledigt das für uns
 
 ## 4. **Die 6 Komponenten**
 
-energy-producer: Simuliert Solar/Windkraft basierend auf einer Wetter-API.
-energy-user: Simuliert Stromverbrauch (Peak-Zeiten morgens & abends).
-usage-service: Berechnet, ob der Community-Pool reicht oder das Stromnetz (Grid) einspringen muss.
-percentage-service: Berechnet die aktuelle Auslastung in Prozent für das GUI.
-rest-api: Stellt die Daten via HTTP-Endpoints für die GUI bereit.
-energy-gui: JavaFX-Dashboard zur Visualisierung der Live-Daten.
-shared: Klassen die von anderen Komponenten verwendet werden.
+* energy-producer: Simuliert Solar/Windkraft basierend auf einer Wetter-API.
+* energy-user: Simuliert Stromverbrauch (Peak-Zeiten morgens & abends).
+* usage-service: Berechnet, ob der Community-Pool reicht oder das Stromnetz (Grid) einspringen muss.
+* percentage-service: Berechnet die aktuelle Auslastung in Prozent für das GUI.
+* rest-api: Stellt die Daten via HTTP-Endpoints für die GUI bereit.
+* energy-gui: JavaFX-Dashboard zur Visualisierung der Live-Daten.
+* shared: Klassen die von anderen Komponenten verwendet werden.
 
 ## 5. **Workflow: So startest du das System**
 
