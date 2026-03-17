@@ -26,7 +26,7 @@ Bevor ihr den Code ausführt, müsst ihr folgende Tools installiert haben:
 
 ### B. Die Shared Library (WICHTIG!)
 Da alle Services das gleiche Nachrichtenformat nutzen, müssen wir die gemeinsame Bibliothek zuerst lokal registrieren:
-1. Suche im Maven-Tab das Modul `energy-shared-library`.
+1. Suche im Maven-Tab das Modul `shared`.
 2. Gehe zu **Lifecycle** -> Doppelklick auf **install**.
 3. Erst wenn hier "BUILD SUCCESS" steht, finden die anderen Projekte die Klasse `EnergyMessage`.
 
