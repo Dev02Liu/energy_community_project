@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Agent ###
+copilot.data.migration.ask2agent.xml
