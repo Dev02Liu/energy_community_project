@@ -50,16 +50,33 @@ Wir müssen nicht mühsam Datenbanken installieren. Docker erledigt das für uns
 * percentage-service: Berechnet die aktuelle Auslastung in Prozent für das GUI.
 * rest-api: Stellt die Daten via HTTP-Endpoints für die GUI bereit.
 * energy-gui: JavaFX-Dashboard zur Visualisierung der Live-Daten.
-* shared: Klassen die von anderen Komponenten verwendet werden.
+* (shared: Klassen die von anderen Komponenten verwendet werden.)
 
 ## 5. **Workflow: So startest du das System**
 
-Um Datenflüsse zu sehen, starte die Komponenten am besten in dieser Reihenfolge:
-Docker (Infrastruktur bereitstellen).
-usage-service & percentage-service (Warten auf Daten).
-energy-producer & energy-user (Starten den Datenfluss).
-rest-api (Macht die Daten abrufbar).
-energy-gui (Zeigt alles an).
+Um das komplette System laufen zu lassen und Datenflüsse zu sehen, gehe am besten in dieser Reihenfolge vor:
+
+### 1. Docker-Infrastruktur starten
+Öffne ein Terminal im Hauptverzeichnis und starte die Services (Datenbank & RabbitMQ):
+```bash
+docker-compose up -d
+```
+
+### 2. Spring Boot Microservices starten
+Starte nacheinander die folgenden Services in IntelliJ (über den Play-Button der jeweiligen `Application`-Klasse) oder im Terminal mit `mvn spring-boot:run` in den Unterordnern:
+
+> 🛠️ **Alternative per Skript (Windows):**  
+> Führe im Hauptverzeichnis einfach das Skript `.\start-services.ps1` aus. Dieses öffnet automatisch für jeden der 5 Backend-Microservices ein neues PowerShell-Fenster und startet ihn mit `mvnw.cmd spring-boot:run`.
+
+1. **Dienste empfangen:** `usage-service` & `percentage-service` (Warten auf eingehende Daten)
+2. **Daten generieren:** `energy-producer` & `energy-user` (Fangen an, Messages an RabbitMQ zu senden)
+3. **Daten bereitstellen:** `rest-api` (Stellt die generierten Daten via REST für das Frontend bereit)
+
+### 3. Benutzeroberfläche (GUI) starten
+Zum Schluss öffnest du das Frontend zur Visualisierung. Starte dazu im Projekt **`energy-gui`** die Klasse `MainApp.java` (über IntelliJ) oder navigiere im Terminal in den `energy-gui` Ordner und führe aus:
+```bash
+mvn compile javafx:run
+```
 
 ## Pro-Tipp
-Wenn du die Klasse EnergyMessage oder sonstige Klassen in der Shared-Library änderst, musst du im Maven-Tab der Library erneut auf install klicken, damit die anderen 6 Komponenten die Änderung übernehmen!
+Wenn du die Klasse EnergyMessage oder sonstige Klassen in der Shared-Library änderst, musst du im Verzeichnis `/shared` den Befehl `mvn clean install` (bzw. im Maven-Tab der Library auf `install`) ausführen, damit die anderen 6 Komponenten deine Änderungen übernehmen!

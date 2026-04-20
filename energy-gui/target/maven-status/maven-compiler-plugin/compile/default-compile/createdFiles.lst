@@ -1,2 +1,5 @@
+com\energy_community_project\gui\MainApp$HistoricalUsageDTO.class
+com\energy_community_project\gui\MainApp.class
+com\energy_community_project\gui\MainApp$CurrentPercentageDTO.class
 com\energy_community_project\gui\MainApp$EnergyGuiApplication$1.class
 com\energy_community_project\gui\MainApp$EnergyGuiApplication.class
