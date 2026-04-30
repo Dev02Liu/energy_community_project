@@ -1,4 +1,4 @@
-package com.energy_community_project.usage_service.config;
+package com.energy_community_project.percentage_service.config;
 
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
@@ -8,11 +8,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMqConfig {
-
-    @Bean
-    public Queue energyQueue(@Value("${app.queue.name}") String queueName) {
-        return new Queue(queueName, true);
-    }
 
     @Bean
     public Queue percentageUpdateQueue(@Value("${app.update-queue.name}") String queueName) {
