@@ -11,6 +11,7 @@
         <option value="$PROJECT_DIR$/energy-producer/pom.xml" />
         <option value="$PROJECT_DIR$/shared/pom.xml" />
         <option value="$PROJECT_DIR$/energy-gui/pom.xml" />
+        <option value="$PROJECT_DIR$/pom.xml" />
       </list>
     </option>
   </component>
