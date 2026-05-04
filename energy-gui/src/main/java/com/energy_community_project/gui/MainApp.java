@@ -21,6 +21,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class MainApp {
@@ -56,10 +58,14 @@ public class MainApp {
             Button refreshButton = new Button("refresh");
             refreshButton.setOnAction(ignored -> fetchCurrentPercentages());
 
-            startField = new TextField("10.01.2025 14:00");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+
+            startField = new TextField(startOfDay.format(formatter));
             startField.setPromptText("Start (dd.MM.yyyy HH:mm)");
 
-            endField = new TextField("10.02.2025 14:00");
+            endField = new TextField(now.format(formatter));
             endField.setPromptText("End (dd.MM.yyyy HH:mm)");
 
             Button showDataButton = new Button("show data");
