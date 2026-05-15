@@ -1,7 +1,7 @@
 package com.energy_community_project.percentage_service.listener;
 
+import com.energy_community_project.percentage_service.messaging.HourlyUsageUpdatedMessage;
 import com.energy_community_project.percentage_service.service.CurrentPercentageCalculationService;
-import com.energy_community_project.shared.dto.HourlyUsageUpdatedMessage;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 

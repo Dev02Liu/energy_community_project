@@ -11,7 +11,7 @@ import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 @EnableScheduling
 public class EnergyProducerApplication {
 
-    static void main(String[] args) {
+    public static void main(String[] args) {
         SpringApplication.run(EnergyProducerApplication.class, args);
     }
 

@@ -1,12 +1,11 @@
 package com.energy_community_project.energy_producer.service;
 
-import com.energy_community_project.shared.dto.EnergyMessage;
+import com.energy_community_project.energy_producer.messaging.EnergyMessage;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Random;
@@ -21,7 +20,6 @@ public class EnergyProducerService {
     private String queueName;
 
     private final Random random = new Random();
-    private final RestTemplate restTemplate = new RestTemplate();
 
     // Runs periodically, we will introduce a random delay between 1-5 seconds inside the method
     @Scheduled(fixedDelay = 1000)

@@ -1,6 +1,6 @@
 package com.energy_community_project.energy_user.service;
 
-import com.energy_community_project.shared.dto.EnergyMessage;
+import com.energy_community_project.energy_user.messaging.EnergyMessage;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

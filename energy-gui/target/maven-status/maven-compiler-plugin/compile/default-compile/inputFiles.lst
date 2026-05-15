@@ -1,1 +1,8 @@
-W:\Development\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\MainApp.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\app\EnergyGuiApplication.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\client\EnergyApiClient.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\client\EnergyApiException.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\controller\EnergyDashboardController.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\dto\CurrentPercentageDTO.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\dto\HistoricalUsageDTO.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\MainApp.java
+C:\dev\energy_community_project\energy-gui\src\main\java\com\energy_community_project\gui\service\EnergyValueFormatter.java
