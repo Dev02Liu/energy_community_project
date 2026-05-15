@@ -15,12 +15,15 @@ import javafx.scene.layout.VBox;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
 
 public class EnergyDashboardController {
 
     private static final String ERROR_MESSAGE = "Error fetching data";
-    private static final DateTimeFormatter GUI_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final DateTimeFormatter GUI_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.uuuu HH:mm")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     private final EnergyApiClient apiClient;
     private final EnergyValueFormatter formatter;
@@ -89,13 +92,38 @@ public class EnergyDashboardController {
     }
 
     private void loadHistoricalUsage() {
-        apiClient.fetchHistoricalUsage(startField.getText(), endField.getText())
+        String startText = startField.getText();
+        String endText = endField.getText();
+        LocalDateTime start = parseGuiDate(startText);
+        LocalDateTime end = parseGuiDate(endText);
+        if (start == null || end == null) {
+            showHistoricalError("Invalid date format (use dd.MM.yyyy HH:mm)");
+            return;
+        }
+        if (start.isAfter(end)) {
+            showHistoricalError("Start must not be after end");
+            return;
+        }
+        apiClient.fetchHistoricalUsage(startText, endText)
                 .thenAccept(entries -> Platform.runLater(() -> showHistoricalUsage(entries)))
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     showHistoricalError(ERROR_MESSAGE);
                     return null;
                 });
+    }
+
+    static LocalDateTime parseGuiDate(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(value.trim(), GUI_FORMATTER);
+        } catch (DateTimeParseException e1) {
+            try {
+                return LocalDateTime.parse(value.trim(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            } catch (DateTimeParseException e2) {
+                return null;
+            }
+        }
     }
 
     private void showCurrentPercentage(CurrentPercentageDTO dto) {

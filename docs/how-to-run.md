@@ -236,7 +236,14 @@ cd percentage-service && .\mvnw.cmd test   # 12 tests
 cd rest-api           && .\mvnw.cmd test   # 25 tests
 ```
 
-All **65 tests** pass without any running infrastructure.
+The `energy-gui` module uses the root `mvnw`:
+
+```powershell
+# from project root:
+.\mvnw -f energy-gui\pom.xml test   # 21 tests
+```
+
+All **86 tests** pass without any running infrastructure.
 
 ---
 

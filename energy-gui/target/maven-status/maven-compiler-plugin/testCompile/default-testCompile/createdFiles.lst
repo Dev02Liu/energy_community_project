@@ -1,0 +1,3 @@
+com\energy_community_project\gui\client\EnergyApiClientTest.class
+com\energy_community_project\gui\service\EnergyValueFormatterTest.class
+com\energy_community_project\gui\controller\DateInputValidationTest.class
