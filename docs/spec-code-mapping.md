@@ -32,11 +32,11 @@ Final grading components:
 | Component | Grading Requirement | Current Status | Risk |
 |---|---|---|---|
 | JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. Text fields are acceptable; GUI client tests would reduce risk. |
-| REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Add endpoint contract tests. |
+| REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Contract tests cover all required endpoints, both date formats, and error cases. |
 | Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented with smoke-test gap | Low. Open-Meteo adapter, fallback, calculator, scheduler gating, and tests exist. Manual RabbitMQ smoke still needed. |
 | Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented with smoke-test gap | Low. Usage calculator, fixed-clock tests, scheduler gating, and message creation tests exist. Manual RabbitMQ smoke still needed. |
-| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented with test gaps | Medium. Formula matches spec example; focused calculation tests are missing. Flyway schema is implemented. |
-| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented with test gaps | Medium. Formula matches spec; Flyway schema is implemented; current/latest table semantics still need clarification. |
+| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. 16 focused unit tests cover spec example, producer/user aggregation, grid fallback, hour bucketing, and null handling. |
+| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. 10 focused unit tests cover spec example, zero production/usage, full depletion, existing row updates, and null handling. Table semantics documented. |
 
 ## Implementation Matrix
 
@@ -53,8 +53,8 @@ Final grading components:
 | Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Fresh Docker PostgreSQL smoke still needed. |
 | Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100` | Implemented | Add tests for zero production, zero usage, full depletion, grid usage. |
 | Percentage persistence | Writes current percentage table | JPA entity/repository for `current_percentage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Decide if table should keep only latest row or latest-per-hour history. |
-| REST current endpoint | `GET /energy/current` returns current hour percentage | Reads latest `current_percentage` row from DB; fallback returns zeros | Implemented | Add controller test and clarify latest/current semantics. |
-| REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; supports ISO and `dd.MM.yyyy HH:mm`; invalid range returns 400 | Implemented | Add MockMvc tests for valid/invalid formats and inclusive boundaries. |
+| REST current endpoint | `GET /energy/current` returns current hour percentage | Reads latest `current_percentage` row from DB; fallback returns zeros | Implemented | Controller mock tests + H2 contract tests cover all cases. Semantics documented in `current_percentage Table Semantics` section. |
+| REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; supports ISO and `dd.MM.yyyy HH:mm`; invalid range returns 400 | Implemented | H2 contract tests cover ISO format, German format, out-of-range exclusion, 400 on invalid date, and 400 on start-after-end. |
 | JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, `dto`, `service`; uses async HTTP and `Platform.runLater` | Implemented | Optional: replace text date fields with controls if time permits. |
 | GUI clean code | View/controller/client/DTO/formatting separated | `MainApp` is only entry point; HTTP/Jackson are in `EnergyApiClient` | Implemented | Keep UI class from accumulating business or HTTP logic. |
 | Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message tests, user usage/message tests, and Flyway-backed repository tests exist | Partial | Add behavior tests across usage, percentage, REST, GUI. |
@@ -64,14 +64,16 @@ Final grading components:
 
 Executed without starting RabbitMQ or PostgreSQL:
 
-| Module | Command | Result |
-|---|---|---|
-| `energy-producer` | `.\mvnw.cmd test` | Build success, 6 tests |
-| `energy-user` | `.\mvnw.cmd test` | Build success, 4 tests |
-| `usage-service` | `.\mvnw.cmd test` | Build success, 2 tests, Flyway-backed H2 schema |
-| `percentage-service` | `.\mvnw.cmd test` | Build success, 2 tests, Flyway-backed H2 schema |
-| `rest-api` | `.\mvnw.cmd test` | Build success, 2 tests, Flyway-backed H2 schema |
-| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | Build success, no tests present |
+| Module | Command | Tests | Notes |
+|---|---|---|---|
+| `energy-producer` | `.\mvnw.cmd test` | 6 | Weather adapter, fallback, production calculator |
+| `energy-user` | `.\mvnw.cmd test` | 4 | Usage calculator, fixed-clock message creation |
+| `usage-service` | `.\mvnw.cmd test` | 18 | Schema migration + 16 focused unit tests for aggregation and grid fallback |
+| `percentage-service` | `.\mvnw.cmd test` | 12 | Schema migration + 10 focused unit tests for percentage calculation |
+| `rest-api` | `.\mvnw.cmd test` | 25 | Schema migration + controller mock tests + H2 contract tests + latest-row behavior |
+| `energy-gui` | `.\mvnw.cmd -f .\energy-gui\pom.xml test` | 0 | Compiles; no automated tests |
+
+**Total: 65 tests, 0 failures** across all modules without any running infrastructure.
 
 No RabbitMQ `Connection refused` stack trace occurred in producer/user tests after disabling scheduled publishers in test configuration.
 
@@ -200,21 +202,13 @@ This is consistent with the `hourly_usage` table (same primary key pattern) and 
 - `CurrentPercentageLatestRowTest` (H2): proves `findFirstByOrderByHourDesc()` returns the highest-hour row when multiple rows exist, that a single row is returned correctly, and that saving the same hour twice results in exactly one row (upsert).
 - `EnergyControllerTest` (MockMvc): proves `GET /energy/current` returns the latest row and falls back to zeros when no data exists.
 
-## Critical Gaps To Address Next
+## Remaining Gaps
 
-1. **Focused behavior tests**
-   - The grading allows point deductions for badly written code and failure to explain the system.
-   - Tests should make the formulas defensible:
-     - Given produced `18.05`, community used `18.02`, grid used `1.056` and a new user message of `0.05` at `14:34`, resulting row must be community used `18.05` and grid used `1.076`.
-     - Percentage must produce `100.00` community depleted and approximately `5.63` grid portion for the spec example.
+1. **Full distributed smoke test** — A live end-to-end run was completed successfully (see `docs/how-to-run.md`). GUI showed correct real-time values. Recommended: repeat once more immediately before hand-in.
 
-2. **Full distributed smoke test**
-   - Automated producer/user tests pass, but the full Docker plus six-component flow should be manually verified before hand-in.
-   - Check RabbitMQ queues, PostgreSQL rows, REST JSON, and GUI labels.
+2. **GUI client tests** — No automated tests for JSON parsing or URL encoding in `energy-gui`. Risk is low since the GUI was verified live against a running system.
 
-3. **Current percentage semantics**
-   - Current code stores rows per hour and REST returns the latest row.
-   - Decide whether this is the intended model or whether `current_percentage` should contain exactly one row.
+3. **Build artifact cleanup** — Check that no `target/` directories are tracked in Git before submission.
 
 ## Lecture Concepts Applied
 
@@ -228,8 +222,11 @@ This is consistent with the `hourly_usage` table (same primary key pattern) and 
 
 ## Recommended Implementation Order
 
-1. Add calculation tests for `usage-service` and `percentage-service`.
-2. Add REST controller tests for current/historical endpoints and invalid dates.
-3. Add GUI client tests for JSON parsing and URL encoding.
-4. Add manual smoke-test runbook.
-5. Remove tracked `target/` artifacts from Git index.
+1. ✅ Add Flyway migrations for project database schema
+2. ✅ Make producer and user scheduling/test behavior deterministic
+3. ✅ Add weather-based production adapter for energy-producer
+4. ✅ Add focused tests for usage aggregation and grid fallback (usage-service, 18 tests)
+5. ✅ Add focused tests for current percentage calculation (percentage-service, 12 tests)
+6. ✅ Clarify and enforce current_percentage table semantics
+7. ✅ Add REST API contract tests with MockMvc and H2 fixture rows (rest-api, 25 tests)
+8. ✅ Live end-to-end smoke test with Docker — document in `docs/how-to-run.md`
