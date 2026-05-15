@@ -6,6 +6,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.context.annotation.Bean;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 
+import java.time.Clock;
+
 @SpringBootApplication
 @EnableScheduling
 public class EnergyUserApplication {
@@ -17,5 +19,10 @@ public class EnergyUserApplication {
 	@Bean
 	public JacksonJsonMessageConverter jsonMessageConverter() {
 		return new JacksonJsonMessageConverter();
+	}
+
+	@Bean
+	public Clock clock() {
+		return Clock.systemDefaultZone();
 	}
 }

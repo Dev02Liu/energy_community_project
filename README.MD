@@ -72,6 +72,24 @@ app.weather.longitude=16.3738
 app.weather.open-meteo.base-url=https://api.open-meteo.com/v1/forecast
 ```
 
+## Deterministic Simulation And Scheduling
+
+Producer and user message creation are testable without RabbitMQ:
+
+- `energy-producer` separates message creation from scheduled publishing.
+- `energy-user` separates usage calculation, random variation, clock access, and scheduled publishing.
+- Both modules use `app.scheduling.enabled` to enable or disable scheduled runtime publishing.
+- Tests set `app.scheduling.enabled=false`, so Spring context tests do not attempt RabbitMQ publishing when no broker is running.
+
+Runtime scheduling remains enabled by default:
+
+```properties
+app.scheduling.enabled=true
+app.scheduling.fixed-delay-ms=1000
+```
+
+The scheduler still waits a random 1-5 seconds before publishing each producer/user event.
+
 For offline mode:
 
 ```powershell
@@ -149,6 +167,21 @@ Run tests module by module:
 ```powershell
 cd energy-producer
 .\mvnw.cmd test
+
+cd ..\energy-user
+.\mvnw.cmd test
+
+cd ..\usage-service
+.\mvnw.cmd test
+
+cd ..\percentage-service
+.\mvnw.cmd test
+
+cd ..\rest-api
+.\mvnw.cmd test
+
+cd ..
+.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test
 ```
 
 The current producer test suite verifies:
@@ -157,6 +190,23 @@ The current producer test suite verifies:
 - fallback behavior when the external weather client fails
 - generated producer messages contain `type`, `association`, `kwh`, and `datetime`
 - tests do not call the public weather API
+
+The current user test suite verifies:
+
+- morning and evening peak usage are higher than night/daytime usage for fixed inputs
+- generated user messages contain `type`, `association`, `kwh`, and `datetime`
+- tests do not require RabbitMQ because scheduled publishing is disabled
+
+Latest automated project check:
+
+- `energy-producer`: 6 tests, build success
+- `energy-user`: 4 tests, build success
+- `usage-service`: 1 context test, build success with H2
+- `percentage-service`: 1 context test, build success with H2
+- `rest-api`: 1 context test, build success with H2
+- `energy-gui`: compiles successfully; no GUI tests exist yet
+
+No local RabbitMQ or PostgreSQL instance is required for these automated checks.
 
 Recommended final verification:
 
