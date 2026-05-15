@@ -229,14 +229,14 @@ docker compose down -v
 Each module has isolated tests that use H2 in-memory and do not need RabbitMQ or PostgreSQL:
 
 ```powershell
-cd energy-producer  && .\mvnw.cmd test   # 6 tests
-cd energy-user      && .\mvnw.cmd test   # 4 tests
-cd usage-service    && .\mvnw.cmd test   # 18 tests
-cd percentage-service && .\mvnw.cmd test # 12 tests
-cd rest-api         && .\mvnw.cmd test   # 13 tests
+cd energy-producer    && .\mvnw.cmd test   #  6 tests
+cd energy-user        && .\mvnw.cmd test   #  4 tests
+cd usage-service      && .\mvnw.cmd test   # 18 tests
+cd percentage-service && .\mvnw.cmd test   # 12 tests
+cd rest-api           && .\mvnw.cmd test   # 25 tests
 ```
 
-All 53 tests pass without any running infrastructure.
+All **65 tests** pass without any running infrastructure.
 
 ---
 
