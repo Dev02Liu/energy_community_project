@@ -1,6 +1,6 @@
 # Project Status
 
-Checked on 2026-05-15 after implementing deterministic producer/user scheduling and test behavior.
+Checked on 2026-05-15 after implementing Flyway migrations for the shared project database schema.
 
 ## Current Overall State
 
@@ -22,6 +22,7 @@ The architecture now follows the lecture feedback more closely:
 - `energy-producer` now uses a weather abstraction instead of a raw random weather factor.
 - `energy-producer` and `energy-user` now separate scheduled publishing from deterministic message creation.
 - Producer/user tests disable scheduled publishing with `app.scheduling.enabled=false`, so no RabbitMQ broker is required.
+- DB-backed modules now use Flyway migrations and Hibernate schema validation instead of `ddl-auto=update`.
 
 ## Grading Mapping
 
@@ -31,8 +32,8 @@ The architecture now follows the lecture feedback more closely:
 | REST API | 10% | Implemented | `GET /energy/current` and `GET /energy/historical` read PostgreSQL-backed repositories. | Add MockMvc tests for success and invalid input cases. |
 | Energy Producer | 10% | Implemented with smoke-test gap | Weather abstraction, Open-Meteo client, fallback client, production calculator, scheduler gating, and unit tests exist. | Run manual RabbitMQ smoke with live service. |
 | Energy User | 10% | Implemented with smoke-test gap | Publishes `USER` messages, varies usage by time of day, and has fixed-input tests. | Run manual RabbitMQ smoke with live service. |
-| Usage Service | 30% | Implemented with test gap | Consumes `EnergyMessage`, updates `hourly_usage`, applies community energy before grid, emits update message. | Add focused calculation tests and Flyway migration. |
-| Percentage Service | 30% | Implemented with test gap | Consumes update message and writes `current_percentage` from `hourly_usage`. | Add focused formula tests and clarify current/latest table semantics. |
+| Usage Service | 30% | Implemented with test gap | Consumes `EnergyMessage`, updates `hourly_usage`, applies community energy before grid, emits update message, and uses Flyway-managed schema. | Add focused calculation tests. |
+| Percentage Service | 30% | Implemented with test gap | Consumes update message, writes `current_percentage`, and uses Flyway-managed schema. | Add focused formula tests and clarify current/latest table semantics. |
 
 ## Implemented Critical Points
 
@@ -133,34 +134,55 @@ Executed without starting RabbitMQ or PostgreSQL:
 |---|---|---|---|
 | `energy-producer` | `.\mvnw.cmd test` | Build success, 6 tests | Scheduling disabled in test config. |
 | `energy-user` | `.\mvnw.cmd test` | Build success, 4 tests | Scheduling disabled in test config. |
-| `usage-service` | `.\mvnw.cmd test` | Build success, 1 context test | Uses H2 test database. |
-| `percentage-service` | `.\mvnw.cmd test` | Build success, 1 context test | Uses H2 test database. |
-| `rest-api` | `.\mvnw.cmd test` | Build success, 1 context test | Uses H2 test database. |
+| `usage-service` | `.\mvnw.cmd test` | Build success, 2 tests | Uses Flyway-backed H2 schema. |
+| `percentage-service` | `.\mvnw.cmd test` | Build success, 2 tests | Uses Flyway-backed H2 schema. |
+| `rest-api` | `.\mvnw.cmd test` | Build success, 2 tests | Uses Flyway-backed H2 schema. |
 | `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | Build success | Compiles; no GUI tests exist yet. |
 
 The first GUI command attempt with plain `mvn test` failed because `mvn` is not on the local shell `PATH`. The module itself compiled successfully when run through a Maven Wrapper from another module.
 
+### Flyway Database Migrations
+
+Implemented in `usage-service`, `percentage-service`, and `rest-api`:
+
+- `spring-boot-starter-flyway` dependency.
+- `flyway-database-postgresql` dependency for PostgreSQL runtime support.
+- `src/main/resources/db/migration/V1__create_energy_tables.sql`.
+- Runtime `spring.jpa.hibernate.ddl-auto=validate`.
+- Test `spring.jpa.hibernate.ddl-auto=validate`.
+- Repository tests proving that Flyway-created tables support the existing JPA repositories.
+
+Created tables:
+
+```sql
+hourly_usage(hour, community_produced, community_used, grid_used)
+current_percentage(hour, community_depleted, grid_portion)
+```
+
+Automated verification:
+
+```powershell
+cd usage-service
+.\mvnw.cmd test
+
+cd ..\percentage-service
+.\mvnw.cmd test
+
+cd ..\rest-api
+.\mvnw.cmd test
+```
+
+Latest result:
+
+- `usage-service`: 2 tests run, 0 failures, 0 errors.
+- `percentage-service`: 2 tests run, 0 failures, 0 errors.
+- `rest-api`: 2 tests run, 0 failures, 0 errors.
+
+Fresh Docker PostgreSQL smoke was not executed because Docker Desktop was not running. The check failed before any destructive volume reset with: Docker API pipe not found.
+
 ## Remaining High-Priority Work
 
-### 1. Add Flyway Migrations
-
-Current state:
-
-- Runtime services still use `spring.jpa.hibernate.ddl-auto=update`.
-
-Required next step:
-
-- Add versioned migrations for:
-  - `hourly_usage`
-  - `current_percentage`
-- Switch runtime schema handling to `validate` or `none`.
-
-Why it matters:
-
-- The lecture code uses versioned database migrations.
-- Final grading expects a clean, explainable persistence setup.
-
-### 2. Add Usage Service Behavior Tests
+### 1. Add Usage Service Behavior Tests
 
 Current state:
 
@@ -174,7 +196,7 @@ Required next step:
 - Test grid fallback.
 - Cover the specification example.
 
-### 3. Add Percentage Service Behavior Tests
+### 2. Add Percentage Service Behavior Tests
 
 Current state:
 
@@ -188,7 +210,7 @@ Required next step:
 - Test full community depletion.
 - Test the specification example.
 
-### 4. Add REST API Contract Tests
+### 3. Add REST API Contract Tests
 
 Current state:
 
@@ -203,7 +225,7 @@ Required next step:
   - invalid date format
   - `start > end`
 
-### 5. Clarify `current_percentage` Semantics
+### 4. Clarify `current_percentage` Semantics
 
 Current state:
 
@@ -215,11 +237,11 @@ Decision still needed:
 - Keep one row per hour and document "latest row" semantics, or
 - store exactly one current row and overwrite it.
 
-### 6. Full Distributed Smoke Test
+### 5. Full Distributed Smoke Test
 
 Current state:
 
-- All modules compile or test successfully in the automated no-infrastructure check.
+- DB-backed module tests pass with Flyway-backed H2 schemas.
 - A full Docker + all services + GUI smoke test was not executed in this implementation pass.
 
 Required next step:

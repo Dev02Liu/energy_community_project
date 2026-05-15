@@ -20,6 +20,7 @@ The JavaFX GUI only talks to the REST API. It does not access RabbitMQ or Postgr
 - Spring AMQP with RabbitMQ
 - Spring Web MVC for REST
 - Spring Data JPA with PostgreSQL
+- Flyway for versioned database migrations
 - JavaFX 25 for the desktop GUI
 - Jackson for JSON serialization
 - Maven / Maven Wrapper
@@ -112,6 +113,28 @@ The historical endpoint also accepts the GUI format `dd.MM.yyyy HH:mm`, for exam
 GET http://localhost:8080/energy/historical?start=15.05.2026%2000:00&end=15.05.2026%2023:00
 ```
 
+## Database Schema
+
+The database schema is managed by Flyway, not by Hibernate runtime schema generation.
+
+The shared database tables are created by `V1__create_energy_tables.sql` in the DB-backed modules:
+
+- `usage-service/src/main/resources/db/migration`
+- `percentage-service/src/main/resources/db/migration`
+- `rest-api/src/main/resources/db/migration`
+
+Runtime configuration uses:
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+Flyway creates and tracks:
+
+- `hourly_usage(hour, community_produced, community_used, grid_used)`
+- `current_percentage(hour, community_depleted, grid_portion)`
+- `flyway_schema_history`
+
 ## Running The System
 
 Start the infrastructure first:
@@ -201,12 +224,21 @@ Latest automated project check:
 
 - `energy-producer`: 6 tests, build success
 - `energy-user`: 4 tests, build success
-- `usage-service`: 1 context test, build success with H2
-- `percentage-service`: 1 context test, build success with H2
-- `rest-api`: 1 context test, build success with H2
+- `usage-service`: 2 tests, build success with Flyway-backed H2 schema
+- `percentage-service`: 2 tests, build success with Flyway-backed H2 schema
+- `rest-api`: 2 tests, build success with Flyway-backed H2 schema
 - `energy-gui`: compiles successfully; no GUI tests exist yet
 
 No local RabbitMQ or PostgreSQL instance is required for these automated checks.
+
+Fresh PostgreSQL migration smoke:
+
+```powershell
+docker-compose down -v
+docker-compose up -d
+```
+
+Then start a DB-backed service and confirm that `flyway_schema_history`, `hourly_usage`, and `current_percentage` exist. This smoke test deletes the local Docker volume and should only be run when resetting local project data is acceptable.
 
 Recommended final verification:
 
@@ -225,7 +257,6 @@ Recommended final verification:
 
 ## Known Remaining Work
 
-- Add Flyway migrations and move runtime schema management away from `spring.jpa.hibernate.ddl-auto=update`.
 - Add focused behavior tests for `usage-service`, `percentage-service`, `rest-api`, and `energy-gui`.
 - Clarify whether `current_percentage` should keep one row per hour or exactly one current row.
 - Run and document a full distributed smoke test before final hand-in.

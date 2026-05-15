@@ -21,7 +21,7 @@ Mandatory criteria from final grading:
 | Criterion | Current Status | Notes |
 |---|---|---|
 | Every component can be started independently | Mostly met | Six independent Maven/Spring/JavaFX modules exist. Full runtime smoke with Docker still needs to be repeated before hand-in. |
-| System can be built and run with no errors | Partly verified | All modules compile or test successfully in the automated no-infrastructure check. Full Docker runtime smoke still needs to be executed. |
+| System can be built and run with no errors | Partly verified | DB-backed modules pass Flyway-backed automated tests. Full Docker runtime smoke still needs to be executed. |
 | Spring Boot used for REST API | Met | `rest-api` is Spring Boot Web MVC. |
 | JavaFX used for GUI | Met | `energy-gui` is JavaFX. |
 | RabbitMQ used between services | Met | Producer/user publish to RabbitMQ; usage consumes; usage publishes update event; percentage consumes update event. |
@@ -35,8 +35,8 @@ Final grading components:
 | REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Add endpoint contract tests. |
 | Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented with smoke-test gap | Low. Open-Meteo adapter, fallback, calculator, scheduler gating, and tests exist. Manual RabbitMQ smoke still needed. |
 | Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented with smoke-test gap | Low. Usage calculator, fixed-clock tests, scheduler gating, and message creation tests exist. Manual RabbitMQ smoke still needed. |
-| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented with test gaps | Medium. Formula matches spec example; Flyway migration and focused tests are missing. |
-| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented with test gaps | Medium. Formula matches spec; table currently stores one row per hour and REST reads latest. |
+| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented with test gaps | Medium. Formula matches spec example; focused calculation tests are missing. Flyway schema is implemented. |
+| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented with test gaps | Medium. Formula matches spec; Flyway schema is implemented; current/latest table semantics still need clarification. |
 
 ## Implementation Matrix
 
@@ -50,14 +50,14 @@ Final grading components:
 | Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; `EnergyProducerScheduler` preserves random 1-5 second delay and can be disabled in tests | Implemented | Manual RabbitMQ smoke still needed. |
 | Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with fixed-clock testability | Implemented | Manual RabbitMQ smoke still needed. |
 | Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed` | Implemented | Add unit tests for spec example and edge cases. |
-| Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Hibernate `ddl-auto=update` | Partial | Add Flyway migration and set production `ddl-auto=none` or `validate`. |
+| Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Fresh Docker PostgreSQL smoke still needed. |
 | Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100` | Implemented | Add tests for zero production, zero usage, full depletion, grid usage. |
-| Percentage persistence | Writes current percentage table | JPA entity/repository for `current_percentage`; Hibernate `ddl-auto=update` | Partial | Add Flyway migration; decide if table should keep only latest row or latest-per-hour history. |
+| Percentage persistence | Writes current percentage table | JPA entity/repository for `current_percentage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Decide if table should keep only latest row or latest-per-hour history. |
 | REST current endpoint | `GET /energy/current` returns current hour percentage | Reads latest `current_percentage` row from DB; fallback returns zeros | Implemented | Add controller test and clarify latest/current semantics. |
 | REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; supports ISO and `dd.MM.yyyy HH:mm`; invalid range returns 400 | Implemented | Add MockMvc tests for valid/invalid formats and inclusive boundaries. |
 | JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, `dto`, `service`; uses async HTTP and `Platform.runLater` | Implemented | Optional: replace text date fields with controls if time permits. |
 | GUI clean code | View/controller/client/DTO/formatting separated | `MainApp` is only entry point; HTTP/Jackson are in `EnergyApiClient` | Implemented | Keep UI class from accumulating business or HTTP logic. |
-| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message tests and user usage/message tests exist; scheduler disabled in producer/user tests | Partial | Add behavior tests across usage, percentage, REST, GUI. |
+| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message tests, user usage/message tests, and Flyway-backed repository tests exist | Partial | Add behavior tests across usage, percentage, REST, GUI. |
 | Build artifacts | No generated files committed | `.gitignore` ignores `target/`, but some `target` files may already be tracked | Partial | Remove tracked build artifacts from Git index in a separate cleanup commit. |
 
 ## Automated Project Test Run
@@ -68,12 +68,35 @@ Executed without starting RabbitMQ or PostgreSQL:
 |---|---|---|
 | `energy-producer` | `.\mvnw.cmd test` | Build success, 6 tests |
 | `energy-user` | `.\mvnw.cmd test` | Build success, 4 tests |
-| `usage-service` | `.\mvnw.cmd test` | Build success, 1 context test |
-| `percentage-service` | `.\mvnw.cmd test` | Build success, 1 context test |
-| `rest-api` | `.\mvnw.cmd test` | Build success, 1 context test |
+| `usage-service` | `.\mvnw.cmd test` | Build success, 2 tests, Flyway-backed H2 schema |
+| `percentage-service` | `.\mvnw.cmd test` | Build success, 2 tests, Flyway-backed H2 schema |
+| `rest-api` | `.\mvnw.cmd test` | Build success, 2 tests, Flyway-backed H2 schema |
 | `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | Build success, no tests present |
 
 No RabbitMQ `Connection refused` stack trace occurred in producer/user tests after disabling scheduled publishers in test configuration.
+
+## Flyway Migration Details
+
+The DB-backed modules now use the lecture-style migration pattern:
+
+```text
+src/main/resources/db/migration/V1__create_energy_tables.sql
+```
+
+The migration creates:
+
+```sql
+hourly_usage(hour, community_produced, community_used, grid_used)
+current_percentage(hour, community_depleted, grid_portion)
+```
+
+Runtime schema generation is disabled as a source of truth:
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+`usage-service`, `percentage-service`, and `rest-api` each include the same V1 migration so whichever DB-backed service starts first can initialize an empty PostgreSQL database. Services started after that validate the same Flyway schema history.
 
 ## Weather Adapter Details
 
@@ -156,22 +179,17 @@ Latest result: 4 tests, 0 failures, 0 errors.
 
 ## Critical Gaps To Address Next
 
-1. **Flyway migrations**
-   - Lecture code uses `src/main/resources/db/migration/V...__description.sql`.
-   - Current DB schema is produced by Hibernate `ddl-auto=update`.
-   - Recommended solution: add migrations for `hourly_usage` and `current_percentage`, then use `ddl-auto=validate` or `none` in runtime config.
-
-2. **Focused behavior tests**
+1. **Focused behavior tests**
    - The grading allows point deductions for badly written code and failure to explain the system.
    - Tests should make the formulas defensible:
      - Given produced `18.05`, community used `18.02`, grid used `1.056` and a new user message of `0.05` at `14:34`, resulting row must be community used `18.05` and grid used `1.076`.
      - Percentage must produce `100.00` community depleted and approximately `5.63` grid portion for the spec example.
 
-3. **Full distributed smoke test**
+2. **Full distributed smoke test**
    - Automated producer/user tests pass, but the full Docker plus six-component flow should be manually verified before hand-in.
    - Check RabbitMQ queues, PostgreSQL rows, REST JSON, and GUI labels.
 
-4. **Current percentage semantics**
+3. **Current percentage semantics**
    - Current code stores rows per hour and REST returns the latest row.
    - Decide whether this is the intended model or whether `current_percentage` should contain exactly one row.
 
@@ -181,15 +199,14 @@ Latest result: 4 tests, 0 failures, 0 errors.
 - SOA/microservices: cohesive components with minimal explicit interfaces.
 - REST: client-server separation, stable URLs, JSON DTOs, HTTP error semantics.
 - JavaFX: MVC/MVVM-inspired separation of entry point, controller, client, DTOs, and formatting.
-- Persistence: PostgreSQL, JPA entities/repositories, and planned Flyway migrations for versioned schema.
+- Persistence: PostgreSQL, JPA entities/repositories, and Flyway migrations for versioned schema.
 - Messaging: RabbitMQ broker decouples producers and consumers; `RabbitTemplate` and `@RabbitListener` follow lecture code.
 - Testing: context tests, calculation unit tests, endpoint tests, persistence integration tests, and manual end-to-end smoke checks all have distinct roles.
 
 ## Recommended Implementation Order
 
-1. Add Flyway migrations for `hourly_usage` and `current_percentage`.
-2. Add calculation tests for `usage-service` and `percentage-service`.
-3. Add REST controller tests for current/historical endpoints and invalid dates.
-4. Add GUI client tests for JSON parsing and URL encoding.
-5. Add manual smoke-test runbook.
-6. Remove tracked `target/` artifacts from Git index.
+1. Add calculation tests for `usage-service` and `percentage-service`.
+2. Add REST controller tests for current/historical endpoints and invalid dates.
+3. Add GUI client tests for JSON parsing and URL encoding.
+4. Add manual smoke-test runbook.
+5. Remove tracked `target/` artifacts from Git index.
