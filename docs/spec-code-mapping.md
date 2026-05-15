@@ -177,6 +177,29 @@ cd energy-user
 
 Latest result: 4 tests, 0 failures, 0 errors.
 
+## current_percentage Table Semantics (Issue 6 Decision)
+
+**Chosen behavior: Option A — one row per hour, REST returns the row with the highest hour.**
+
+### Rationale
+
+The `current_percentage` table uses `hour` (a `LocalDateTime` truncated to the full hour) as its primary key. The `percentage-service` writes or overwrites one row per hour whenever a usage update message arrives. `GET /energy/current` calls `findFirstByOrderByHourDesc()`, which returns the row with the highest hour value — always the most recently updated hour.
+
+This is consistent with the `hourly_usage` table (same primary key pattern) and keeps the history for debugging without requiring a schema change or special singleton logic.
+
+### Invariants enforced by design
+
+| Rule | How it holds |
+|---|---|
+| Each hour has at most one row | `hour` is the primary key — duplicate saves are upserts |
+| `GET /current` always returns the latest data | `findFirstByOrderByHourDesc()` orders by PK descending |
+| No ambiguous data is created | Same hour → same PK → same row is overwritten |
+
+### Tests
+
+- `CurrentPercentageLatestRowTest` (H2): proves `findFirstByOrderByHourDesc()` returns the highest-hour row when multiple rows exist, that a single row is returned correctly, and that saving the same hour twice results in exactly one row (upsert).
+- `EnergyControllerTest` (MockMvc): proves `GET /energy/current` returns the latest row and falls back to zeros when no data exists.
+
 ## Critical Gaps To Address Next
 
 1. **Focused behavior tests**
