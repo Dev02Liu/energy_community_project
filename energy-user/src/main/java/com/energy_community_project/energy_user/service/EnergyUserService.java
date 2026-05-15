@@ -2,56 +2,49 @@ package com.energy_community_project.energy_user.service;
 
 import com.energy_community_project.energy_user.messaging.EnergyMessage;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Random;
 
 @Service
 public class EnergyUserService {
 
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private final RabbitTemplate rabbitTemplate;
+    private final EnergyUsageCalculator usageCalculator;
+    private final UsageVariationProvider usageVariationProvider;
+    private final Clock clock;
+    private final String queueName;
 
-    @Value("${app.queue.name}")
-    private String queueName;
+    public EnergyUserService(RabbitTemplate rabbitTemplate,
+                             EnergyUsageCalculator usageCalculator,
+                             UsageVariationProvider usageVariationProvider,
+                             Clock clock,
+                             @Value("${app.queue.name}") String queueName) {
+        this.rabbitTemplate = rabbitTemplate;
+        this.usageCalculator = usageCalculator;
+        this.usageVariationProvider = usageVariationProvider;
+        this.clock = clock;
+        this.queueName = queueName;
+    }
 
-    private final Random random = new Random();
+    public void publishUsageData() {
+        EnergyMessage msg = createUsageMessage();
 
-    @Scheduled(fixedDelay = 1000)
-    public void sendUsageData() {
-        try {
-            // Random delay between 1 and 5 seconds
-            Thread.sleep((long) (1000 + random.nextInt(4000)));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        rabbitTemplate.convertAndSend(queueName, msg);
+        System.out.println("Sent: " + msg.getType() + " - " + String.format("%.2f", msg.getKwh()) + " kWh");
+    }
 
-        LocalDateTime now = LocalDateTime.now();
-        int hour = now.getHour();
-        
-        // Determine usage based on time of day (Peak morning 7-9, Peak evening 18-21)
-        double baseUsage = 2.0; 
-        double peakMultiplier = 1.0;
-
-        if ((hour >= 7 && hour <= 9) || (hour >= 18 && hour <= 21)) {
-            peakMultiplier = 3.0; // Peak times
-        } else if (hour >= 23 || hour <= 5) {
-            peakMultiplier = 0.5; // Night times (low usage)
-        }
-
-        double usedKwh = (baseUsage + random.nextDouble() * 3.0) * peakMultiplier;
+    public EnergyMessage createUsageMessage() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        double usedKwh = usageCalculator.calculateKwh(now, usageVariationProvider.nextVariationKwh());
 
         EnergyMessage msg = new EnergyMessage();
         msg.setType("USER");
         msg.setAssociation("COMMUNITY");
         msg.setKwh(usedKwh);
         msg.setDatetime(now);
-
-        rabbitTemplate.convertAndSend(queueName, msg);
-        System.out.println("Sent: " + msg.getType() + " - " + String.format("%.2f", msg.getKwh()) + " kWh");
+        return msg;
     }
 }

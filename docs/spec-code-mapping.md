@@ -1,14 +1,6 @@
 # Project Specification To Code Mapping
 
-This mapping is based on the project specification, grading schema, lecture transcripts, lecture code, lecture materials, and the repository state checked on 2026-05-15.
-
-## Source Basis
-
-- `project-resources/LEcture-Materials/Projektspezifikationen.pdf`
-- `project-resources/LEcture-Materials/ProjektGrading.pdf`
-- `project-resources/Lecture Transcripts.txt`
-- `project-resources/Lecture-Code/disys26bwi1/disys26bwi1`
-- Lecture materials for REST, JavaFX, PostgreSQL, JPA/Flyway, RabbitMQ/scaling, design, and testing.
+This mapping reflects the repository state checked on 2026-05-15.
 
 ## Specification Summary
 
@@ -29,7 +21,7 @@ Mandatory criteria from final grading:
 | Criterion | Current Status | Notes |
 |---|---|---|
 | Every component can be started independently | Mostly met | Six independent Maven/Spring/JavaFX modules exist. Full runtime smoke with Docker still needs to be repeated before hand-in. |
-| System can be built and run with no errors | Partly verified | `energy-producer` tests pass after the weather adapter change. Other modules should be retested as follow-up issues are completed. |
+| System can be built and run with no errors | Partly verified | All modules compile or test successfully in the automated no-infrastructure check. Full Docker runtime smoke still needs to be executed. |
 | Spring Boot used for REST API | Met | `rest-api` is Spring Boot Web MVC. |
 | JavaFX used for GUI | Met | `energy-gui` is JavaFX. |
 | RabbitMQ used between services | Met | Producer/user publish to RabbitMQ; usage consumes; usage publishes update event; percentage consumes update event. |
@@ -41,8 +33,8 @@ Final grading components:
 |---|---|---|---|
 | JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. Text fields are acceptable; GUI client tests would reduce risk. |
 | REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Add endpoint contract tests. |
-| Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented with smoke-test gap | Low. Open-Meteo adapter, fallback, calculator, and tests exist. Manual RabbitMQ smoke still needed. |
-| Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented with test gap | Medium. Logic exists but deterministic fixed-clock tests are missing. |
+| Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented with smoke-test gap | Low. Open-Meteo adapter, fallback, calculator, scheduler gating, and tests exist. Manual RabbitMQ smoke still needed. |
+| Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented with smoke-test gap | Low. Usage calculator, fixed-clock tests, scheduler gating, and message creation tests exist. Manual RabbitMQ smoke still needed. |
 | Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented with test gaps | Medium. Formula matches spec example; Flyway migration and focused tests are missing. |
 | Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented with test gaps | Medium. Formula matches spec; table currently stores one row per hour and REST reads latest. |
 
@@ -55,8 +47,8 @@ Final grading components:
 | Message contract | JSON messages documented as contracts, not shared Java dependency | `docs/message-contract.md` documents `EnergyMessage` and `HourlyUsageUpdatedMessage`; local DTOs per service | Implemented | Add serialization tests for required fields and timestamp format. |
 | RabbitMQ topology | Producer/user messages to usage; usage update message to percentage | `energy_queue` for producer/user, `percentage_update_queue` for derived update events | Implemented | Exchange/per-service queues only needed if more consumers must observe the same stream. |
 | Energy Producer weather | Produced kWh must be weather-dependent | `WeatherClient`, `OpenMeteoWeatherClient`, `FallbackWeatherClient`, `ResilientWeatherClient`, and `WeatherProductionCalculator` are used by `EnergyProducerService` | Implemented | Manual live smoke with RabbitMQ and optional Open-Meteo availability check. |
-| Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; scheduler preserves random 1-5 second sleep | Implemented | Scheduler determinism can be improved in a separate issue. |
-| Energy User | Time-of-day-dependent usage message every few seconds | Sends `USER` messages; higher usage morning/evening, lower at night | Implemented | Extract clock/random collaborators for deterministic tests. |
+| Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; `EnergyProducerScheduler` preserves random 1-5 second delay and can be disabled in tests | Implemented | Manual RabbitMQ smoke still needed. |
+| Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with fixed-clock testability | Implemented | Manual RabbitMQ smoke still needed. |
 | Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed` | Implemented | Add unit tests for spec example and edge cases. |
 | Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Hibernate `ddl-auto=update` | Partial | Add Flyway migration and set production `ddl-auto=none` or `validate`. |
 | Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100` | Implemented | Add tests for zero production, zero usage, full depletion, grid usage. |
@@ -65,8 +57,23 @@ Final grading components:
 | REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; supports ISO and `dd.MM.yyyy HH:mm`; invalid range returns 400 | Implemented | Add MockMvc tests for valid/invalid formats and inclusive boundaries. |
 | JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, `dto`, `service`; uses async HTTP and `Platform.runLater` | Implemented | Optional: replace text date fields with controls if time permits. |
 | GUI clean code | View/controller/client/DTO/formatting separated | `MainApp` is only entry point; HTTP/Jackson are in `EnergyApiClient` | Implemented | Keep UI class from accumulating business or HTTP logic. |
-| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/calculation/message tests exist; other modules mostly have startup tests | Partial | Add behavior tests across usage, percentage, REST, GUI. |
+| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message tests and user usage/message tests exist; scheduler disabled in producer/user tests | Partial | Add behavior tests across usage, percentage, REST, GUI. |
 | Build artifacts | No generated files committed | `.gitignore` ignores `target/`, but some `target` files may already be tracked | Partial | Remove tracked build artifacts from Git index in a separate cleanup commit. |
+
+## Automated Project Test Run
+
+Executed without starting RabbitMQ or PostgreSQL:
+
+| Module | Command | Result |
+|---|---|---|
+| `energy-producer` | `.\mvnw.cmd test` | Build success, 6 tests |
+| `energy-user` | `.\mvnw.cmd test` | Build success, 4 tests |
+| `usage-service` | `.\mvnw.cmd test` | Build success, 1 context test |
+| `percentage-service` | `.\mvnw.cmd test` | Build success, 1 context test |
+| `rest-api` | `.\mvnw.cmd test` | Build success, 1 context test |
+| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | Build success, no tests present |
+
+No RabbitMQ `Connection refused` stack trace occurred in producer/user tests after disabling scheduled publishers in test configuration.
 
 ## Weather Adapter Details
 
@@ -108,6 +115,45 @@ cd energy-producer
 
 Latest result: 6 tests, 0 failures, 0 errors.
 
+## Deterministic Scheduling And Simulation Details
+
+Producer and user scheduled publishing now follow the same pattern:
+
+```text
+Scheduler
+  -> SimulationDelayProvider
+  -> Service#create...Message
+  -> RabbitTemplate.convertAndSend
+```
+
+Runtime properties:
+
+```properties
+app.scheduling.enabled=true
+app.scheduling.fixed-delay-ms=1000
+```
+
+Test properties:
+
+```properties
+app.scheduling.enabled=false
+```
+
+`energy-user` now has deterministic collaborators:
+
+- `EnergyUsageCalculator` for time-of-day multipliers
+- `UsageVariationProvider` for random kWh variation
+- injected `Clock` for fixed timestamp tests
+
+Automated verification:
+
+```powershell
+cd energy-user
+.\mvnw.cmd test
+```
+
+Latest result: 4 tests, 0 failures, 0 errors.
+
 ## Critical Gaps To Address Next
 
 1. **Flyway migrations**
@@ -122,7 +168,7 @@ Latest result: 6 tests, 0 failures, 0 errors.
      - Percentage must produce `100.00` community depleted and approximately `5.63` grid portion for the spec example.
 
 3. **Full distributed smoke test**
-   - Automated producer tests pass, but the full Docker plus six-component flow should be manually verified before hand-in.
+   - Automated producer/user tests pass, but the full Docker plus six-component flow should be manually verified before hand-in.
    - Check RabbitMQ queues, PostgreSQL rows, REST JSON, and GUI labels.
 
 4. **Current percentage semantics**

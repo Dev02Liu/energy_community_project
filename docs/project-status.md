@@ -1,6 +1,6 @@
 # Project Status
 
-Checked on 2026-05-15 after implementing the weather-based producer adapter.
+Checked on 2026-05-15 after implementing deterministic producer/user scheduling and test behavior.
 
 ## Current Overall State
 
@@ -20,6 +20,8 @@ The architecture now follows the lecture feedback more closely:
 - Services do not use the former `shared` Maven module as a compile-time DTO dependency.
 - RabbitMQ payloads are service-local Java DTOs with a central JSON contract in `docs/message-contract.md`.
 - `energy-producer` now uses a weather abstraction instead of a raw random weather factor.
+- `energy-producer` and `energy-user` now separate scheduled publishing from deterministic message creation.
+- Producer/user tests disable scheduled publishing with `app.scheduling.enabled=false`, so no RabbitMQ broker is required.
 
 ## Grading Mapping
 
@@ -27,8 +29,8 @@ The architecture now follows the lecture feedback more closely:
 |---|---:|---|---|---|
 | JavaFX UI | 10% | Implemented | `energy-gui` uses JavaFX and calls only REST through `EnergyApiClient`. | Add GUI client tests and possibly stronger date controls. |
 | REST API | 10% | Implemented | `GET /energy/current` and `GET /energy/historical` read PostgreSQL-backed repositories. | Add MockMvc tests for success and invalid input cases. |
-| Energy Producer | 10% | Implemented with smoke-test gap | Weather abstraction, Open-Meteo client, fallback client, production calculator, and unit tests exist. | Run manual RabbitMQ smoke with live service. |
-| Energy User | 10% | Implemented with test gap | Publishes `USER` messages and varies usage by time of day. | Extract deterministic collaborators and add fixed-clock tests. |
+| Energy Producer | 10% | Implemented with smoke-test gap | Weather abstraction, Open-Meteo client, fallback client, production calculator, scheduler gating, and unit tests exist. | Run manual RabbitMQ smoke with live service. |
+| Energy User | 10% | Implemented with smoke-test gap | Publishes `USER` messages, varies usage by time of day, and has fixed-input tests. | Run manual RabbitMQ smoke with live service. |
 | Usage Service | 30% | Implemented with test gap | Consumes `EnergyMessage`, updates `hourly_usage`, applies community energy before grid, emits update message. | Add focused calculation tests and Flyway migration. |
 | Percentage Service | 30% | Implemented with test gap | Consumes update message and writes `current_percentage` from `hourly_usage`. | Add focused formula tests and clarify current/latest table semantics. |
 
@@ -88,6 +90,55 @@ Guardrail:
 
 - Do not reintroduce a shared DTO Maven module for service-to-service communication.
 - If a JSON field changes, update `docs/message-contract.md` first, then update the local DTOs in the affected services.
+
+### Deterministic Producer/User Tests
+
+Implemented in `energy-producer`:
+
+- scheduled publishing moved to `EnergyProducerScheduler`
+- random 1-5 second delay moved to `SimulationDelayProvider`
+- `EnergyProducerService#createProductionMessage` remains testable without RabbitMQ
+- test config disables scheduled publishing through `app.scheduling.enabled=false`
+
+Implemented in `energy-user`:
+
+- scheduled publishing moved to `EnergyUserScheduler`
+- random 1-5 second delay moved to `SimulationDelayProvider`
+- usage variation moved to `UsageVariationProvider`
+- time-of-day calculation moved to `EnergyUsageCalculator`
+- `EnergyUserService#createUsageMessage` is testable with a fixed `Clock`
+- test config disables scheduled publishing through `app.scheduling.enabled=false`
+
+Automated verification:
+
+```powershell
+cd energy-producer
+.\mvnw.cmd test
+
+cd energy-user
+.\mvnw.cmd test
+```
+
+Latest result:
+
+- `energy-producer`: 6 tests run, 0 failures, 0 errors.
+- `energy-user`: 4 tests run, 0 failures, 0 errors.
+- No RabbitMQ `Connection refused` stack trace occurred in either module.
+
+### Automated Project Test Run
+
+Executed without starting RabbitMQ or PostgreSQL:
+
+| Module | Command | Result | Notes |
+|---|---|---|---|
+| `energy-producer` | `.\mvnw.cmd test` | Build success, 6 tests | Scheduling disabled in test config. |
+| `energy-user` | `.\mvnw.cmd test` | Build success, 4 tests | Scheduling disabled in test config. |
+| `usage-service` | `.\mvnw.cmd test` | Build success, 1 context test | Uses H2 test database. |
+| `percentage-service` | `.\mvnw.cmd test` | Build success, 1 context test | Uses H2 test database. |
+| `rest-api` | `.\mvnw.cmd test` | Build success, 1 context test | Uses H2 test database. |
+| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | Build success | Compiles; no GUI tests exist yet. |
+
+The first GUI command attempt with plain `mvn test` failed because `mvn` is not on the local shell `PATH`. The module itself compiled successfully when run through a Maven Wrapper from another module.
 
 ## Remaining High-Priority Work
 
@@ -168,7 +219,7 @@ Decision still needed:
 
 Current state:
 
-- `energy-producer` unit tests pass.
+- All modules compile or test successfully in the automated no-infrastructure check.
 - A full Docker + all services + GUI smoke test was not executed in this implementation pass.
 
 Required next step:

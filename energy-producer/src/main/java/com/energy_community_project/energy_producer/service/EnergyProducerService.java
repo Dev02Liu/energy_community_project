@@ -6,12 +6,10 @@ import com.energy_community_project.energy_producer.weather.WeatherProductionCal
 import com.energy_community_project.energy_producer.weather.WeatherSnapshot;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Random;
 
 @Service
 public class EnergyProducerService {
@@ -21,7 +19,6 @@ public class EnergyProducerService {
     private final WeatherProductionCalculator productionCalculator;
     private final Clock clock;
     private final String queueName;
-    private final Random random = new Random();
 
     public EnergyProducerService(RabbitTemplate rabbitTemplate,
                                  WeatherClient weatherClient,
@@ -35,16 +32,7 @@ public class EnergyProducerService {
         this.queueName = queueName;
     }
 
-    // Runs periodically, we will introduce a random delay between 1-5 seconds inside the method
-    @Scheduled(fixedDelay = 1000)
-    public void sendProductionData() {
-        try {
-            // Random delay between 1 and 5 seconds to meet requirement "random 1-5 second intervals"
-            Thread.sleep((long) (1000 + random.nextInt(4000)));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
+    public void publishProductionData() {
         EnergyMessage msg = createProductionMessage();
 
         rabbitTemplate.convertAndSend(queueName, msg);
