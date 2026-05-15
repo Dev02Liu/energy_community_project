@@ -1,6 +1,6 @@
 package com.energy_community_project.usage_service.listener;
 
-import com.energy_community_project.shared.dto.EnergyMessage;
+import com.energy_community_project.usage_service.messaging.EnergyMessage;
 import com.energy_community_project.usage_service.service.HourlyUsageUpdateService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;

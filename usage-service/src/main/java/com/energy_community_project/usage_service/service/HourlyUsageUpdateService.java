@@ -1,8 +1,8 @@
 package com.energy_community_project.usage_service.service;
 
-import com.energy_community_project.shared.dto.EnergyMessage;
-import com.energy_community_project.shared.dto.HourlyUsageUpdatedMessage;
 import com.energy_community_project.usage_service.entity.HourlyUsageEntity;
+import com.energy_community_project.usage_service.messaging.EnergyMessage;
+import com.energy_community_project.usage_service.messaging.HourlyUsageUpdatedMessage;
 import com.energy_community_project.usage_service.repository.HourlyUsageRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;

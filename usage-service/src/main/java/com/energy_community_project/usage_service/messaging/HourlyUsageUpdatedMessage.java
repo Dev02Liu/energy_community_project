@@ -1,8 +1,9 @@
-package com.energy_community_project.shared.dto;
+package com.energy_community_project.usage_service.messaging;
 
 import java.time.LocalDateTime;
 
 public class HourlyUsageUpdatedMessage {
+
     private LocalDateTime hour;
 
     public HourlyUsageUpdatedMessage() {
