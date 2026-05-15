@@ -3,15 +3,6 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
-        <entry key="$PROJECT_DIR$/.gitignore">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/.gitignore" />
-              <option name="originalContent" value="&quot;&quot; &#10;" />
-              <option name="updatedContent" value="HELP.md&#10;target/&#10;*.jar&#10;*.war&#10;*.ear&#10;*.class&#10;&#10;# IntelliJ IDEA&#10;.idea/&#10;*.iml&#10;*.iws&#10;*.ipr&#10;&#10;# Eclipse&#10;.classpath&#10;.project&#10;.settings/&#10;.metadata/&#10;bin/&#10;&#10;# VS Code&#10;.vscode/&#10;&#10;# Maven&#10;.mvn/wrapper/maven-wrapper.jar&#10;!**/src/main/**/target/&#10;!**/src/test/**/target/&#10;&#10;# OS specific&#10;.DS_Store&#10;Thumbs.db&#10;" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
         <entry key="$PROJECT_DIR$/energy-gui/src/main/java/com/energy_community_project/gui/MainApp.java">
           <value>
             <PendingDiffInfo>
