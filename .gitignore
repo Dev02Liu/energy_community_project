@@ -4,6 +4,7 @@ Project-resources/
 .agent-local/
 .codex-local/
 .agents/
+.claude/
 
 # Build outputs
 target/
@@ -21,6 +22,14 @@ target/
 *.iml
 *.iws
 *.ipr
+.idea/**/*.xml
+
+# Spring Boot generated
+HELP.md
+
+# Local environment / secrets
+.env
+*.env
 
 # Eclipse
 .classpath
