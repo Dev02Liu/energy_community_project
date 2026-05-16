@@ -182,7 +182,7 @@ cd energy-gui
 Verify:
 
 - current percentages load from `/energy/current`,
-- historical data loads from `/energy/historical`,
+- historical data loads from `/energy/historical` and is shown as aggregate labels for the selected range,
 - REST errors are shown in the GUI,
 - GUI contains no database credentials and no direct database connection.
 

@@ -271,11 +271,14 @@ The GUI:
 - calls `GET /energy/current` for current percentages,
 - calls `GET /energy/historical?start=...&end=...` for historical data,
 - contains no PostgreSQL/JPA/RabbitMQ dependency,
-- shows API errors in the UI.
+- shows API errors in the UI,
+- displays historical values as aggregate labels for the selected range.
 
 The REST API must be running on `http://localhost:8080` before starting the GUI.
 
 ## Final Demo Flow
+
+For the full repeatable manual smoke test, use [docs/smoke-test.md](docs/smoke-test.md).
 
 1. Show the Git branch and repository.
 2. Show that six component folders exist and each has its own `pom.xml`.
@@ -322,8 +325,17 @@ Replace or extend this table with final real names, GitHub usernames, and actual
 
 ## Documentation
 
+- [docs/documentation-overview.md](docs/documentation-overview.md): documentation index and QA reading path.
+- Module documentation:
+  - [docs/energy-producer.md](docs/energy-producer.md)
+  - [docs/energy-user.md](docs/energy-user.md)
+  - [docs/usage-service.md](docs/usage-service.md)
+  - [docs/percentage-service.md](docs/percentage-service.md)
+  - [docs/rest-api.md](docs/rest-api.md)
+  - [docs/energy-gui.md](docs/energy-gui.md)
 - [docs/message-contract.md](docs/message-contract.md): RabbitMQ topology and JSON contracts.
 - [docs/database-schema.md](docs/database-schema.md): implemented DB schema and conceptual mapping.
 - [docs/how-to-run.md](docs/how-to-run.md): detailed runbook.
+- [docs/smoke-test.md](docs/smoke-test.md): full distributed smoke-test runbook for RabbitMQ, PostgreSQL, REST, and JavaFX verification.
 - [docs/final-readiness-check.md](docs/final-readiness-check.md): final pre-submission checklist.
 - [docs/spec-code-mapping.md](docs/spec-code-mapping.md): specification-to-code mapping.
