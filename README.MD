@@ -1,149 +1,104 @@
 # Energy Community Project
 
-Distributed Systems course project for simulating an energy community. The system is built as independently startable components that communicate through explicit REST and RabbitMQ JSON contracts.
+Distributed Systems course project for simulating an energy community. The system is intentionally built from six independently startable applications that communicate through REST, RabbitMQ JSON messages, and a shared PostgreSQL database.
 
-## Architecture
+## Final Submission Summary
+
+This project uses **Java 25** and **Spring Boot 4.0.3**. The project was built and tested with this stack. If another machine is used for the final demo, install Java 25 or adapt the project to Java 21 LTS before running the Maven commands.
+
+The grading-critical architecture is:
 
 ```text
-energy-producer -> RabbitMQ -> usage-service -> PostgreSQL
-energy-user     -> RabbitMQ -> usage-service -> PostgreSQL
-usage-service   -> RabbitMQ -> percentage-service -> PostgreSQL
-energy-gui      -> REST API -> PostgreSQL
+Energy Producer -> RabbitMQ -> Usage Service -> PostgreSQL
+Energy User     -> RabbitMQ -> Usage Service -> PostgreSQL
+Usage Service   -> RabbitMQ -> Percentage Service -> PostgreSQL
+JavaFX GUI      -> REST API -> PostgreSQL
 ```
 
-The JavaFX GUI only talks to the REST API. It does not access RabbitMQ or PostgreSQL directly. Services do not depend on a shared Java DTO module; RabbitMQ payloads are documented in [docs/message-contract.md](docs/message-contract.md).
-
-## Tech Stack
-
-- Java 25
-- Spring Boot 4
-- Spring AMQP with RabbitMQ
-- Spring Web MVC for REST
-- Spring Data JPA with PostgreSQL
-- Flyway for versioned database migrations
-- JavaFX 25 for the desktop GUI
-- Jackson for JSON serialization
-- Maven / Maven Wrapper
-- Docker Compose for PostgreSQL and RabbitMQ
-- JUnit and Mockito for tests
+The GUI never connects to PostgreSQL directly. The REST API reads PostgreSQL and does not calculate or write the core business values. Producer and User services do not write to the database.
 
 ## Components
 
-| Component | Port | Responsibility |
-|---|---:|---|
-| `energy-producer` | `8081` | Publishes weather-dependent `PRODUCER` messages to RabbitMQ. |
-| `energy-user` | `8082` | Publishes time-of-day-dependent `USER` messages to RabbitMQ. |
-| `usage-service` | `8083` | Consumes producer/user messages, aggregates hourly usage, writes `hourly_usage`, and emits update messages. |
-| `percentage-service` | `8084` | Consumes usage update messages, calculates current percentages, and writes `current_percentage`. |
-| `rest-api` | `8080` | Reads PostgreSQL and exposes the GUI-facing REST endpoints. |
-| `energy-gui` | n/a | JavaFX dashboard for current percentages and historical usage data. |
+| Component | Path | Port | Start Command | Responsibility |
+|---|---|---:|---|---|
+| Energy Producer | `energy-producer` | 8081 | `.\mvnw.cmd spring-boot:run` | Publishes weather-dependent `PRODUCER` messages. |
+| Energy User | `energy-user` | 8082 | `.\mvnw.cmd spring-boot:run` | Publishes time-of-day-dependent `USER` messages. |
+| Usage Service | `usage-service` | 8083 | `.\mvnw.cmd spring-boot:run` | Consumes producer/user messages, aggregates hourly usage, writes `hourly_usage`, publishes usage updates. |
+| Percentage Service | `percentage-service` | 8084 | `.\mvnw.cmd spring-boot:run` | Consumes usage updates, calculates rounded percentages, writes `current_percentage`. |
+| REST API | `rest-api` | 8080 | `.\mvnw.cmd spring-boot:run` | Read-only API for current and historical energy data. |
+| JavaFX GUI | `energy-gui` | n/a | `..\energy-producer\mvnw.cmd -f pom.xml javafx:run` | Desktop GUI that calls only the REST API. |
+
+Each component has its own `pom.xml` and own application entry point. Start components in separate terminals for the final demo.
+
+## Prerequisites
+
+| Tool | Required | Purpose |
+|---|---|---|
+| JDK | Java 25 tested | Build and run all Java modules. |
+| Maven Wrapper | included in service modules | Build/run without local Maven installation. |
+| Docker Desktop | 4.x or newer | Runs PostgreSQL and RabbitMQ. |
+| PostgreSQL | via Docker Compose | Shared persistence. |
+| RabbitMQ | via Docker Compose | Asynchronous service communication. |
+| JavaFX | Maven dependencies in `energy-gui` | Desktop GUI. |
 
 ## Infrastructure
 
 Start PostgreSQL and RabbitMQ from the repository root:
 
 ```powershell
-docker-compose up -d
+docker compose up -d
+docker compose ps
 ```
 
-Ports:
+Ports and credentials:
 
-- PostgreSQL: `localhost:5432`
-- RabbitMQ Java clients: `localhost:5672`
-- RabbitMQ Management UI: `http://localhost:15672` with `guest` / `guest`
+| Service | URL / Port | Credentials |
+|---|---|---|
+| PostgreSQL | `localhost:5432`, database `energy_community` | user `user`, password `password` |
+| RabbitMQ AMQP | `localhost:5672` | user `guest`, password `guest` |
+| RabbitMQ Management UI | `http://localhost:15672` | user `guest`, password `guest` |
 
-## Weather-Based Production
+## Build Commands
 
-`energy-producer` uses a small weather abstraction:
-
-- `WeatherClient` is the interface used by the production service.
-- `OpenMeteoWeatherClient` reads cloud cover, daylight, and shortwave radiation from Open-Meteo.
-- `FallbackWeatherClient` provides deterministic local weather values for offline demos and tests.
-- `ResilientWeatherClient` uses Open-Meteo by default and falls back automatically if the API is unavailable.
-- `WeatherProductionCalculator` maps the weather snapshot to a plausible kWh value.
-
-Relevant configuration in `energy-producer/src/main/resources/application.properties`:
-
-```properties
-app.production.min-kwh=10.0
-app.production.max-kwh=30.0
-app.weather.mode=open-meteo
-app.weather.latitude=48.2082
-app.weather.longitude=16.3738
-app.weather.open-meteo.base-url=https://api.open-meteo.com/v1/forecast
-```
-
-## Deterministic Simulation And Scheduling
-
-Producer and user message creation are testable without RabbitMQ:
-
-- `energy-producer` separates message creation from scheduled publishing.
-- `energy-user` separates usage calculation, random variation, clock access, and scheduled publishing.
-- Both modules use `app.scheduling.enabled` to enable or disable scheduled runtime publishing.
-- Tests set `app.scheduling.enabled=false`, so Spring context tests do not attempt RabbitMQ publishing when no broker is running.
-
-Runtime scheduling remains enabled by default:
-
-```properties
-app.scheduling.enabled=true
-app.scheduling.fixed-delay-ms=1000
-```
-
-The scheduler still waits a random 1-5 seconds before publishing each producer/user event.
-
-For offline mode:
+Run from a clean PowerShell terminal:
 
 ```powershell
 cd energy-producer
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
+.\mvnw.cmd clean package
+
+cd ..\energy-user
+.\mvnw.cmd clean package
+
+cd ..\usage-service
+.\mvnw.cmd clean package
+
+cd ..\percentage-service
+.\mvnw.cmd clean package
+
+cd ..\rest-api
+.\mvnw.cmd clean package
+
+cd ..
+.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml clean package
 ```
 
-## REST API
+The tests are isolated. They use mocks or H2 where needed and do not require a live RabbitMQ or PostgreSQL instance.
 
-`rest-api` exposes the required GUI endpoints:
+## Start Order
 
-```http
-GET http://localhost:8080/energy/current
-GET http://localhost:8080/energy/historical?start=2026-05-15T00:00:00&end=2026-05-15T23:00:00
+Start in this order for the final demo:
+
+```text
+1. docker compose up -d
+2. usage-service
+3. percentage-service
+4. rest-api
+5. energy-producer
+6. energy-user
+7. energy-gui
 ```
 
-The historical endpoint also accepts the GUI format `dd.MM.yyyy HH:mm`, for example:
-
-```http
-GET http://localhost:8080/energy/historical?start=15.05.2026%2000:00&end=15.05.2026%2023:00
-```
-
-## Database Schema
-
-The database schema is managed by Flyway, not by Hibernate runtime schema generation.
-
-The shared database tables are created by `V1__create_energy_tables.sql` in the DB-backed modules:
-
-- `usage-service/src/main/resources/db/migration`
-- `percentage-service/src/main/resources/db/migration`
-- `rest-api/src/main/resources/db/migration`
-
-Runtime configuration uses:
-
-```properties
-spring.jpa.hibernate.ddl-auto=validate
-```
-
-Flyway creates and tracks:
-
-- `hourly_usage(hour, community_produced, community_used, grid_used)`
-- `current_percentage(hour, community_depleted, grid_portion)`
-- `flyway_schema_history`
-
-## Running The System
-
-Start the infrastructure first:
-
-```powershell
-docker-compose up -d
-```
-
-Then start the services in separate terminals:
+Commands:
 
 ```powershell
 cd usage-service
@@ -152,6 +107,11 @@ cd usage-service
 
 ```powershell
 cd percentage-service
+.\mvnw.cmd spring-boot:run
+```
+
+```powershell
+cd rest-api
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -166,98 +126,204 @@ cd energy-user
 ```
 
 ```powershell
-cd rest-api
-.\mvnw.cmd spring-boot:run
-```
-
-Start the GUI after `rest-api` is running:
-
-```powershell
 cd energy-gui
-mvn compile javafx:run
+..\energy-producer\mvnw.cmd -f pom.xml javafx:run
 ```
 
-On Windows, the helper script can start the Spring services:
-
-```powershell
-.\start-services.ps1
-```
-
-## Testing
-
-Run tests module by module:
+Optional producer offline/weather fallback mode:
 
 ```powershell
 cd energy-producer
-.\mvnw.cmd test
-
-cd ..\energy-user
-.\mvnw.cmd test
-
-cd ..\usage-service
-.\mvnw.cmd test
-
-cd ..\percentage-service
-.\mvnw.cmd test
-
-cd ..\rest-api
-.\mvnw.cmd test
-
-cd ..
-.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
 ```
 
-The current producer test suite verifies:
+## REST API
 
-- weather-to-kWh mapping with fixed weather input
-- fallback behavior when the external weather client fails
-- generated producer messages contain `type`, `association`, `kwh`, and `datetime`
-- tests do not call the public weather API
+Required endpoints:
 
-The current user test suite verifies:
+```http
+GET http://localhost:8080/energy/current
+GET http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59
+```
 
-- morning and evening peak usage are higher than night/daytime usage for fixed inputs
-- generated user messages contain `type`, `association`, `kwh`, and `datetime`
-- tests do not require RabbitMQ because scheduled publishing is disabled
+The historical endpoint accepts ISO local datetime and the GUI format `dd.MM.yyyy HH:mm`.
 
-Latest automated project check:
-
-- `energy-producer`: 6 tests, build success
-- `energy-user`: 4 tests, build success
-- `usage-service`: 2 tests, build success with Flyway-backed H2 schema
-- `percentage-service`: 2 tests, build success with Flyway-backed H2 schema
-- `rest-api`: 2 tests, build success with Flyway-backed H2 schema
-- `energy-gui`: compiles successfully; no GUI tests exist yet
-
-No local RabbitMQ or PostgreSQL instance is required for these automated checks.
-
-Fresh PostgreSQL migration smoke:
+Example:
 
 ```powershell
-docker-compose down -v
-docker-compose up -d
+curl http://localhost:8080/energy/current
+curl "http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59"
 ```
 
-Then start a DB-backed service and confirm that `flyway_schema_history`, `hourly_usage`, and `current_percentage` exist. This smoke test deletes the local Docker volume and should only be run when resetting local project data is acceptable.
+Current response fields:
 
-Recommended final verification:
+```json
+{
+  "hour": "2026-05-16T10:00",
+  "communityDepleted": 100.0,
+  "gridPortion": 5.63
+}
+```
 
-1. Start Docker infrastructure.
-2. Start all Spring services.
-3. Confirm `energy_queue` and `percentage_update_queue` activity in RabbitMQ Management UI.
-4. Confirm rows in PostgreSQL tables `hourly_usage` and `current_percentage`.
-5. Call `/energy/current` and `/energy/historical`.
-6. Start the JavaFX GUI and verify current and historical values are displayed.
+Historical response fields:
+
+```json
+[
+  {
+    "hour": "2026-05-16T10:00",
+    "communityProduced": 18.05,
+    "communityUsed": 18.05,
+    "gridUsed": 1.076
+  }
+]
+```
+
+## RabbitMQ Topology
+
+The implementation uses durable direct queues. This is sufficient for the current project because each message stream has exactly one consumer service.
+
+```text
+Energy Producer -> energy_queue -> Usage Service
+Energy User     -> energy_queue -> Usage Service
+Usage Service   -> percentage_update_queue -> Percentage Service
+```
+
+Why RabbitMQ is used:
+
+- Producer/User and Usage Service are asynchronously decoupled.
+- Usage Service and Percentage Service are asynchronously decoupled.
+- Producer/User do not need a direct reference to Usage Service.
+- Percentage Service reacts to usage-update events instead of polling the database.
+
+If more consumers need the same stream later, the direct queues can be replaced with an exchange and per-service queues, for example a topic exchange with routing keys such as `energy.producer.created`, `energy.user.created`, and `energy.usage.updated`.
+
+Message contracts are documented in [docs/message-contract.md](docs/message-contract.md).
+
+## Database Schema
+
+The database schema is managed by Flyway in the DB-backed modules:
+
+- `usage-service/src/main/resources/db/migration/V1__create_energy_tables.sql`
+- `percentage-service/src/main/resources/db/migration/V1__create_energy_tables.sql`
+- `rest-api/src/main/resources/db/migration/V1__create_energy_tables.sql`
+
+Hibernate validates the schema:
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+Implemented tables:
+
+| Table | Responsibility | Writer | Readers |
+|---|---|---|---|
+| `hourly_usage` | Aggregated hourly energy usage. Conceptually equivalent to `energy_usage_hourly` in the project mapping. | Usage Service | Percentage Service, REST API |
+| `current_percentage` | Current/latest percentage values per hour. | Percentage Service | REST API |
+
+Detailed schema mapping is documented in [docs/database-schema.md](docs/database-schema.md).
+
+## Business Rules
+
+Usage Service buckets every message to the full hour:
+
+```text
+2025-01-10T14:34 -> 2025-01-10T14:00
+```
+
+For `PRODUCER` messages:
+
+```text
+communityProduced += message.kwh
+```
+
+For `USER` messages:
+
+```text
+availableCommunityEnergy = communityProduced - communityUsed
+communityPart = min(message.kwh, max(availableCommunityEnergy, 0))
+gridPart = message.kwh - communityPart
+
+communityUsed += communityPart
+gridUsed += gridPart
+```
+
+Invariant:
+
+```text
+communityUsed <= communityProduced
+```
+
+There is no Grid Producer and no Grid Message. Grid energy is the fallback portion when community energy is not sufficient.
+
+Percentage Service formulas:
+
+```text
+communityDepleted = communityUsed / communityProduced * 100
+gridPortion = gridUsed / (communityUsed + gridUsed) * 100
+```
+
+Division by zero returns `0`, and persisted percentage values are rounded to two decimals.
+
+## JavaFX GUI
+
+The GUI:
+
+- calls `GET /energy/current` for current percentages,
+- calls `GET /energy/historical?start=...&end=...` for historical data,
+- contains no PostgreSQL/JPA/RabbitMQ dependency,
+- shows API errors in the UI.
+
+The REST API must be running on `http://localhost:8080` before starting the GUI.
+
+## Final Demo Flow
+
+1. Show the Git branch and repository.
+2. Show that six component folders exist and each has its own `pom.xml`.
+3. Run `docker compose ps` and show PostgreSQL/RabbitMQ.
+4. Start `usage-service`.
+5. Start `percentage-service`.
+6. Start `rest-api`.
+7. Start `energy-producer` and show `PRODUCER` logs.
+8. Start `energy-user` and show `USER` logs.
+9. Open RabbitMQ Management UI and show `energy_queue` / `percentage_update_queue`.
+10. Query PostgreSQL:
+    - `SELECT * FROM hourly_usage ORDER BY hour DESC LIMIT 10;`
+    - `SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;`
+11. Call REST endpoints with curl/browser.
+12. Open JavaFX GUI, refresh current values, and query historical data.
+13. Explain the flow: `Producer/User -> RabbitMQ -> Usage -> DB -> RabbitMQ -> Percentage -> DB -> REST -> GUI`.
+
+## Team Contributions
+
+Each team member must have own Git commits. The lecturer explicitly treats missing individual commits as a personal grading risk. Verify before submission:
+
+```powershell
+git shortlog -sn
+```
+
+Observed local commit authors during audit:
+
+| Git Author | Commits Observed | Main Contribution Notes |
+|---|---:|---|
+| OnlyMajorG | 32 | Verify real name and contributions before submission. |
+| Yijie Liu | 12 | Verify real name and contributions before submission. |
+| stefangirgis | 7 | Verify real name and contributions before submission. |
+
+Replace or extend this table with final real names, GitHub usernames, and actual contribution areas before hand-in if the submission requires personal attribution.
+
+## Known Limitations
+
+- The project uses Java 25 and Spring Boot 4.0.3 instead of the lecture reference versions. This is documented as an environment prerequisite.
+- RabbitMQ uses direct durable queues instead of an explicit exchange/routing-key topology. This is intentional because each stream currently has one consumer.
+- The implemented table `hourly_usage` is conceptually the project mapping table `energy_usage_hourly`.
+- Audit timestamp columns such as `updated_at` and `calculated_at` are intentionally omitted in the current schema because the grading-relevant values are `hour`, usage totals, and percentage totals.
+- Authentication, Kubernetes, cloud deployment, API gateway, and OAuth are not implemented because they are outside the project scope.
+- Generated Maven `target/` files should not be tracked in Git. Run the cleanup checklist before final submission.
 
 ## Documentation
 
-- [docs/message-contract.md](docs/message-contract.md): RabbitMQ JSON contracts and guardrails.
-- [docs/spec-code-mapping.md](docs/spec-code-mapping.md): detailed specification-to-code mapping.
-- [docs/project-status.md](docs/project-status.md): current implementation status, completed items, and remaining work.
-
-## Known Remaining Work
-
-- Add focused behavior tests for `usage-service`, `percentage-service`, `rest-api`, and `energy-gui`.
-- Clarify whether `current_percentage` should keep one row per hour or exactly one current row.
-- Run and document a full distributed smoke test before final hand-in.
-- Remove any already tracked Maven `target/` artifacts from the Git index in a dedicated repository hygiene change.
+- [docs/message-contract.md](docs/message-contract.md): RabbitMQ topology and JSON contracts.
+- [docs/database-schema.md](docs/database-schema.md): implemented DB schema and conceptual mapping.
+- [docs/how-to-run.md](docs/how-to-run.md): detailed runbook.
+- [docs/final-readiness-check.md](docs/final-readiness-check.md): final pre-submission checklist.
+- [docs/spec-code-mapping.md](docs/spec-code-mapping.md): specification-to-code mapping.

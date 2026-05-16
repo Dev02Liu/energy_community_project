@@ -1,195 +1,134 @@
-# How to Run – Energy Community Project
+# How to Run - Energy Community Project
 
-This guide walks through starting the complete system from scratch and verifying that every component works.
+This guide starts the complete system from scratch and verifies that every component works.
 
 ## Prerequisites
 
 | Tool | Minimum Version | Purpose |
 |---|---|---|
 | Docker Desktop | 4.x | Runs PostgreSQL and RabbitMQ |
-| JDK | 25 | Builds and runs all Spring Boot services |
-| Maven Wrapper | included | No separate Maven install needed |
-| JavaFX SDK | bundled via Maven | Included in the GUI pom.xml |
+| JDK | 25 | Builds and runs all modules. Tested with Java 25 and Spring Boot 4.0.3. |
+| Maven Wrapper | included | No separate Maven install needed for the Spring modules |
+| JavaFX SDK | bundled through Maven | Included in the GUI `pom.xml` |
 
----
+Before the final demo, make sure no old Java service process is still using ports `8080`, `8081`, `8082`, `8083`, or `8084`.
 
 ## System Overview
 
-```
-energy-producer  (port 8081)  →─┐
-                                  ├── RabbitMQ: energy_queue ──→ usage-service (8083)
-energy-user      (port 8082)  →─┘                                     │
-                                                                        │ RabbitMQ: percentage_update_queue
-                                                                        ↓
-                                                              percentage-service (8084)
-                                                                        │
-                                                                   PostgreSQL
-                                                                        │
-                                                              rest-api (8080) ←── energy-gui (JavaFX)
+```text
+energy-producer  (8081) -> RabbitMQ energy_queue -> usage-service (8083)
+energy-user      (8082) -> RabbitMQ energy_queue -> usage-service (8083)
+usage-service           -> RabbitMQ percentage_update_queue -> percentage-service (8084)
+usage-service           -> PostgreSQL hourly_usage
+percentage-service      -> PostgreSQL current_percentage
+rest-api         (8080) -> reads PostgreSQL
+energy-gui              -> calls rest-api over HTTP
 ```
 
----
+## Step 1 - Start Infrastructure
 
-## Step 1 – Start the Infrastructure
-
-Open a terminal in the project root and run:
+Run from the repository root:
 
 ```powershell
 docker compose up -d
+docker compose ps
 ```
 
-Expected output:
-```
-Container energy-db  Started
-Container energy-mq  Started
-```
+Verify:
 
-**Verify:**
 - PostgreSQL: `localhost:5432`, database `energy_community`, user `user`, password `password`
-- RabbitMQ Management UI: http://localhost:15672 → login `guest` / `guest`
+- RabbitMQ Management UI: `http://localhost:15672`, user `guest`, password `guest`
 
----
+## Step 2 - Start Backend Services
 
-## Step 2 – Start the Backend Services
+Start each service in a separate terminal.
 
-Each service has its own `mvnw.cmd`. Start them in **separate terminals** in this order:
+### 1. Usage Service
 
-### 1. usage-service (port 8083)
 ```powershell
 cd usage-service
 .\mvnw.cmd spring-boot:run
 ```
+
 Wait for: `Started UsageServiceApplication`
 
-### 2. percentage-service (port 8084)
+### 2. Percentage Service
+
 ```powershell
 cd percentage-service
 .\mvnw.cmd spring-boot:run
 ```
+
 Wait for: `Started PercentageServiceApplication`
 
-### 3. rest-api (port 8080)
+### 3. REST API
+
 ```powershell
 cd rest-api
 .\mvnw.cmd spring-boot:run
 ```
+
 Wait for: `Started RestApiApplication`
 
-**Verify REST API is up:**
+Verify:
+
 ```powershell
 curl http://localhost:8080/energy/current
 ```
-Expected response (no data yet):
-```json
-{"hour":"...","communityDepleted":0.0,"gridPortion":0.0}
-```
 
----
+## Step 3 - Start Simulators
 
-## Step 3 – Start the Simulators
+### 4. Energy Producer
 
-### 4. energy-producer (port 8081)
 ```powershell
 cd energy-producer
 .\mvnw.cmd spring-boot:run
 ```
-Wait for: `Started EnergyProducerApplication`
 
-The producer fetches real weather data from Open-Meteo (Vienna, 48.2082°N / 16.3738°E) and publishes a production message every ~1–5 seconds to `energy_queue`.
+The producer fetches weather data from Open-Meteo by default and falls back to local weather simulation if the external API is unavailable.
 
-### 5. energy-user (port 8082)
+Offline/fallback mode:
+
+```powershell
+cd energy-producer
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
+```
+
+### 5. Energy User
+
 ```powershell
 cd energy-user
 .\mvnw.cmd spring-boot:run
 ```
-Wait for: `Started EnergyUserApplication`
 
-The user simulator publishes usage messages every ~1–5 seconds based on the current time of day (peak hours 7–10, 18–22 use 3× base load).
+The user simulator publishes usage messages based on time of day.
 
----
+## Step 4 - Verify RabbitMQ
 
-## Step 4 – Verify Data is Flowing
+Open `http://localhost:15672`.
 
-After ~10 seconds, call the current-percentage endpoint:
+Check:
 
-```powershell
-curl http://localhost:8080/energy/current
-```
-
-Expected response with real data:
-```json
-{
-  "hour": "2026-05-15T21:00",
-  "communityDepleted": 93.55,
-  "gridPortion": 24.52
-}
-```
-
-- `communityDepleted` – percentage of community-produced energy that has been consumed
-- `gridPortion` – percentage of total consumption that came from the grid
-
----
-
-## Step 5 – Query Historical Data
-
-The historical endpoint accepts ISO format or German date format (`dd.MM.yyyy HH:mm`):
-
-```powershell
-# ISO format
-curl "http://localhost:8080/energy/historical?start=2026-05-15T00:00:00&end=2026-05-15T23:00:00"
-
-# German format
-curl "http://localhost:8080/energy/historical?start=15.05.2026+00%3A00&end=15.05.2026+23%3A00"
-```
-
-Example response:
-```json
-[
-  {
-    "hour": "2026-05-15T21:00",
-    "communityProduced": 176.0,
-    "communityUsed": 158.94,
-    "gridUsed": 36.78
-  }
-]
-```
-
-**Error cases:**
-- Invalid date format → `400 Bad Request`
-- `start` after `end` → `400 Bad Request`
-
----
-
-## Step 6 – Start the GUI
-
-```powershell
-cd energy-gui
-.\mvnw.cmd javafx:run
-```
-
-The GUI window opens and immediately loads the current percentage data. Use the date range fields to load historical kWh data.
-
-> The GUI connects to `http://localhost:8080` — the rest-api must be running first.
-
----
-
-## Verify via RabbitMQ Management UI
-
-Open http://localhost:15672 (login: `guest` / `guest`).
-
-| What to check | Where |
+| Queue | Expected Behavior |
 |---|---|
-| Queues exist | Queues → `energy_queue`, `percentage_update_queue` |
-| Messages flowing | Queues → click a queue → Message rates graph shows activity |
-| No messages stuck | `Messages Ready` should stay near 0 (consumed immediately) |
+| `energy_queue` | Receives producer/user messages and should usually drain quickly. |
+| `percentage_update_queue` | Receives usage update messages and should usually drain quickly. |
 
----
+Topology:
 
-## Verify via PostgreSQL
-
-Connect with any SQL client (e.g. DBeaver):
-
+```text
+Energy Producer -> energy_queue -> Usage Service
+Energy User     -> energy_queue -> Usage Service
+Usage Service   -> percentage_update_queue -> Percentage Service
 ```
+
+Direct queues are intentional because each stream has one consumer. If another service later needs to observe the same stream, introduce an exchange and per-service queues.
+
+## Step 5 - Verify PostgreSQL
+
+Connect with a SQL client:
+
+```text
 Host:     localhost
 Port:     5432
 Database: energy_community
@@ -197,63 +136,103 @@ User:     user
 Password: password
 ```
 
-Useful queries:
-```sql
--- Latest hourly usage rows
-SELECT * FROM hourly_usage ORDER BY hour DESC LIMIT 10;
+Queries:
 
--- Current percentage rows
-SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 5;
+```sql
+SELECT * FROM hourly_usage ORDER BY hour DESC LIMIT 10;
+SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;
 ```
 
----
+`hourly_usage` is the implemented name for the conceptual `energy_usage_hourly` table. See `docs/database-schema.md`.
+
+## Step 6 - Verify REST API
+
+Current data:
+
+```powershell
+curl http://localhost:8080/energy/current
+```
+
+Historical data:
+
+```powershell
+curl "http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59"
+```
+
+The historical endpoint also accepts German GUI format:
+
+```powershell
+curl "http://localhost:8080/energy/historical?start=16.05.2026+00%3A00&end=16.05.2026+23%3A59"
+```
+
+Expected error cases:
+
+- Invalid date format -> `400 Bad Request`
+- `start` after `end` -> `400 Bad Request`
+
+## Step 7 - Start GUI
+
+Start after `rest-api` is running:
+
+```powershell
+cd energy-gui
+..\energy-producer\mvnw.cmd -f pom.xml javafx:run
+```
+
+Verify:
+
+- current percentages load from `/energy/current`,
+- historical data loads from `/energy/historical`,
+- REST errors are shown in the GUI,
+- GUI contains no database credentials and no direct database connection.
+
+## Run All Automated Builds
+
+Run from PowerShell:
+
+```powershell
+cd energy-producer
+.\mvnw.cmd clean package
+
+cd ..\energy-user
+.\mvnw.cmd clean package
+
+cd ..\usage-service
+.\mvnw.cmd clean package
+
+cd ..\percentage-service
+.\mvnw.cmd clean package
+
+cd ..\rest-api
+.\mvnw.cmd clean package
+
+cd ..
+.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml clean package
+```
 
 ## Stop Everything
 
-```powershell
-# Stop the infrastructure
-docker compose down
+Stop Spring Boot/JavaFX applications with `Ctrl+C` in their terminals.
 
-# The Spring Boot services can be stopped with Ctrl+C in each terminal
+Stop infrastructure:
+
+```powershell
+docker compose down
 ```
 
-To also delete the PostgreSQL data volume:
+Delete local PostgreSQL data volume only when a clean database reset is intended:
+
 ```powershell
 docker compose down -v
 ```
-
----
-
-## Run All Automated Tests (without Docker)
-
-Each module has isolated tests that use H2 in-memory and do not need RabbitMQ or PostgreSQL:
-
-```powershell
-cd energy-producer    && .\mvnw.cmd test   #  6 tests
-cd energy-user        && .\mvnw.cmd test   #  4 tests
-cd usage-service      && .\mvnw.cmd test   # 18 tests
-cd percentage-service && .\mvnw.cmd test   # 12 tests
-cd rest-api           && .\mvnw.cmd test   # 25 tests
-```
-
-The `energy-gui` module uses the root `mvnw`:
-
-```powershell
-# from project root:
-.\mvnw -f energy-gui\pom.xml test   # 21 tests
-```
-
-All **86 tests** pass without any running infrastructure.
-
----
 
 ## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| `Connection refused` on port 5432 or 5672 | Docker containers not started | Run `docker compose up -d` |
-| `usage-service` fails to start | PostgreSQL not ready yet | Wait 5 seconds and retry |
-| `GET /current` always returns zeros | Simulators not running | Start energy-producer and energy-user |
-| `communityDepleted` stays at 0 | percentage-service not running | Start percentage-service |
-| GUI shows no data | rest-api not running or wrong port | Confirm rest-api is on port 8080 |
-| Producer uses fallback weather | Open-Meteo API unreachable | Expected behavior — fallback simulates daylight/night correctly |
+| Port already in use | Old Java process still running | Stop old service process or restart terminal/IDE. |
+| `Connection refused` on `5432` or `5672` | Docker containers not running | Run `docker compose up -d`. |
+| REST returns zeros | No percentage row yet | Start producer, user, usage, and percentage services. |
+| `current_percentage` is not updating | Percentage Service not running or update queue stuck | Check `percentage_update_queue` and percentage logs. |
+| GUI cannot load data | REST API not running on port `8080` | Start `rest-api` and retry. |
+| Producer uses fallback weather | Open-Meteo unavailable | Expected; fallback keeps demo working. |

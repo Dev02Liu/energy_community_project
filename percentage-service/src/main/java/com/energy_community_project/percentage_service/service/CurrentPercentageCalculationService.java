@@ -7,6 +7,8 @@ import com.energy_community_project.percentage_service.repository.HourlyUsageRep
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 @Service
@@ -36,9 +38,9 @@ public class CurrentPercentageCalculationService {
         double communityUsed = hourlyUsage.getCommunityUsed();
         double gridUsed = hourlyUsage.getGridUsed();
 
-        double communityDepleted = produced > 0 ? (communityUsed / produced) * 100.0 : 0.0;
+        double communityDepleted = produced > 0 ? roundPercentage((communityUsed / produced) * 100.0) : 0.0;
         double totalUsed = communityUsed + gridUsed;
-        double gridPortion = totalUsed > 0 ? (gridUsed / totalUsed) * 100.0 : 0.0;
+        double gridPortion = totalUsed > 0 ? roundPercentage((gridUsed / totalUsed) * 100.0) : 0.0;
 
         CurrentPercentageEntity currentPercentage = currentPercentageRepository.findById(hour)
                 .orElseGet(CurrentPercentageEntity::new);
@@ -48,5 +50,11 @@ public class CurrentPercentageCalculationService {
         currentPercentage.setGridPortion(gridPortion);
 
         currentPercentageRepository.save(currentPercentage);
+    }
+
+    private double roundPercentage(double value) {
+        return BigDecimal.valueOf(value)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 }

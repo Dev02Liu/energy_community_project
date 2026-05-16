@@ -1,5 +1,7 @@
 # DISYS Project Audit Report
 
+Post-audit update on branch `44-issue-81---readiness-fixes`: Usage message validation, percentage rounding, RabbitMQ topology documentation, database schema mapping, README final-demo instructions, and the final readiness checklist have been updated after this audit. Treat the detailed findings below as the original audit baseline; use `README.MD`, `docs/message-contract.md`, `docs/database-schema.md`, `docs/spec-code-mapping.md`, and `docs/final-readiness-check.md` for the current readiness state.
+
 ## 1. Executive Summary
 
 Overall readiness: **MOSTLY READY**

@@ -35,8 +35,28 @@ Final grading components:
 | REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Contract tests cover all required endpoints, both date formats, and error cases. |
 | Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented with smoke-test gap | Low. Open-Meteo adapter, fallback, calculator, scheduler gating, and tests exist. Manual RabbitMQ smoke still needed. |
 | Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented with smoke-test gap | Low. Usage calculator, fixed-clock tests, scheduler gating, and message creation tests exist. Manual RabbitMQ smoke still needed. |
-| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. 16 focused unit tests cover spec example, producer/user aggregation, grid fallback, hour bucketing, and null handling. |
-| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. 10 focused unit tests cover spec example, zero production/usage, full depletion, existing row updates, and null handling. Table semantics documented. |
+| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. Focused unit tests cover spec example, producer/user aggregation, grid fallback, hour bucketing, user-before-producer ordering, and invalid-message rejection. |
+| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. Focused unit tests cover spec example, zero production/usage, full depletion, existing row updates, null handling, and two-decimal rounding. Table semantics documented. |
+
+## Lecturer Risk Checklist
+
+This section maps the lecturer's grading-risk comments to the current implementation.
+
+| Lecturer Risk | Current Project Evidence | Status |
+|---|---|---|
+| Six components must be separate projects | `energy-producer`, `energy-user`, `usage-service`, `percentage-service`, `rest-api`, and `energy-gui` each have their own `pom.xml` and entry point. | Met |
+| Independent startup is a possible 0-point risk | README lists one start command per component and the required startup order. | Met |
+| Each team member needs own commits | README documents `git shortlog -sn` as a final check and lists observed local authors. Real-name mapping should be verified before submission. | Manual check |
+| Usage/Percentage calculations are major grading risk | Focused tests cover hourly bucketing, grid fallback, invariant, user-before-producer ordering, division by zero, and percentage rounding. | Met |
+| Messages are aggregated hourly | Usage Service truncates minute/second/nano to the hour; tests cover `14:34 -> 14:00`. | Met |
+| Producer uses weather; User uses time of day | Producer has Open-Meteo plus fallback weather; User has time-of-day calculator and tests. | Met |
+| Usage Service is central integration component | Usage consumes producer/user messages, writes `hourly_usage`, and publishes update messages. | Met |
+| Percentage reacts after Usage update | Percentage consumes `percentage_update_queue`; it does not consume producer/user messages or poll as the main trigger. | Met |
+| No Grid message | Grid usage is calculated from the uncovered user demand in Usage Service. | Met |
+| Message order affects values | Documented and tested: user-before-producer first assigns usage to grid, later producer increases produced for the same hour without retroactive rebalance. | Met |
+| REST and UI are mandatory | Spring Boot REST API and JavaFX GUI exist and build independently. | Met |
+| Two REST views are required | `GET /energy/current` and `GET /energy/historical?start=...&end=...` are implemented and tested. | Met |
+| Final presentation questions matter | README and `docs/final-readiness-check.md` include explanation prompts for RabbitMQ, table ownership, sync/async communication, and distributed-system flow. | Met |
 
 ## Implementation Matrix
 
@@ -49,9 +69,9 @@ Final grading components:
 | Energy Producer weather | Produced kWh must be weather-dependent | `WeatherClient`, `OpenMeteoWeatherClient`, `FallbackWeatherClient`, `ResilientWeatherClient`, and `WeatherProductionCalculator` are used by `EnergyProducerService` | Implemented | Manual live smoke with RabbitMQ and optional Open-Meteo availability check. |
 | Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; `EnergyProducerScheduler` preserves random 1-5 second delay and can be disabled in tests | Implemented | Manual RabbitMQ smoke still needed. |
 | Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with fixed-clock testability | Implemented | Manual RabbitMQ smoke still needed. |
-| Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed` | Implemented | Add unit tests for spec example and edge cases. |
+| Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed`; invalid messages are rejected before DB writes or update events | Implemented | Keep validation tests in place when changing message contracts. |
 | Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Fresh Docker PostgreSQL smoke still needed. |
-| Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100` | Implemented | Add tests for zero production, zero usage, full depletion, grid usage. |
+| Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100`, then rounds persisted values to two decimals | Implemented | Keep formula and rounding tests in place. |
 | Percentage persistence | Writes current percentage table | JPA entity/repository for `current_percentage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Decide if table should keep only latest row or latest-per-hour history. |
 | REST current endpoint | `GET /energy/current` returns current hour percentage | Reads latest `current_percentage` row from DB; fallback returns zeros | Implemented | Controller mock tests + H2 contract tests cover all cases. Semantics documented in `current_percentage Table Semantics` section. |
 | REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; supports ISO and `dd.MM.yyyy HH:mm`; invalid range returns 400 | Implemented | H2 contract tests cover ISO format, German format, out-of-range exclusion, 400 on invalid date, and 400 on start-after-end. |
@@ -91,6 +111,8 @@ The migration creates:
 hourly_usage(hour, community_produced, community_used, grid_used)
 current_percentage(hour, community_depleted, grid_portion)
 ```
+
+The implementation table `hourly_usage` is conceptually equivalent to the project mapping name `energy_usage_hourly`. The shorter name is used consistently across Flyway, JPA, REST, Usage Service, and Percentage Service. Detailed responsibilities are documented in `docs/database-schema.md`.
 
 Runtime schema generation is disabled as a source of truth:
 
