@@ -1,0 +1,191 @@
+# Final Readiness Check
+
+Use this checklist before the final hand-in and before the presentation. The goal is to prove the project as a distributed system, not only as isolated modules.
+
+## Build
+
+- [ ] `energy-producer` builds: `cd energy-producer; .\mvnw.cmd clean package`
+- [ ] `energy-user` builds: `cd energy-user; .\mvnw.cmd clean package`
+- [ ] `usage-service` builds: `cd usage-service; .\mvnw.cmd clean package`
+- [ ] `percentage-service` builds: `cd percentage-service; .\mvnw.cmd clean package`
+- [ ] `rest-api` builds: `cd rest-api; .\mvnw.cmd clean package`
+- [ ] `energy-gui` builds: from repo root, `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml clean package`
+
+## Infrastructure
+
+- [ ] Docker Desktop is running.
+- [ ] PostgreSQL starts via Docker Compose: `docker compose up -d`
+- [ ] RabbitMQ starts via Docker Compose: `docker compose up -d`
+- [ ] `docker compose ps` shows `energy-db` running.
+- [ ] `docker compose ps` shows `energy-mq` running.
+- [ ] RabbitMQ Management UI is reachable at `http://localhost:15672`.
+- [ ] PostgreSQL is reachable at `localhost:5432`, database `energy_community`, user `user`.
+
+## Independent Components
+
+- [ ] `energy-producer` has its own `pom.xml` and main application class.
+- [ ] `energy-user` has its own `pom.xml` and main application class.
+- [ ] `usage-service` has its own `pom.xml` and main application class.
+- [ ] `percentage-service` has its own `pom.xml` and main application class.
+- [ ] `rest-api` has its own `pom.xml` and main application class.
+- [ ] `energy-gui` has its own `pom.xml` and JavaFX entry point.
+- [ ] All six components can be started in separate terminals.
+
+## Start Order
+
+- [ ] Start Docker infrastructure.
+- [ ] Start `usage-service`.
+- [ ] Start `percentage-service`.
+- [ ] Start `rest-api`.
+- [ ] Start `energy-producer`.
+- [ ] Start `energy-user`.
+- [ ] Start `energy-gui`.
+
+## End-to-End Flow
+
+- [ ] Energy Producer sends `PRODUCER` messages to RabbitMQ.
+- [ ] Energy User sends `USER` messages to RabbitMQ.
+- [ ] Usage Service consumes producer messages.
+- [ ] Usage Service consumes user messages.
+- [ ] Usage Service buckets messages to the correct hour.
+- [ ] Usage Service writes `hourly_usage`.
+- [ ] Usage Service publishes an update message to RabbitMQ.
+- [ ] Percentage Service consumes the update message.
+- [ ] Percentage Service reads `hourly_usage`.
+- [ ] Percentage Service writes rounded values to `current_percentage`.
+- [ ] REST API returns current data from `current_percentage`.
+- [ ] REST API returns historical data from `hourly_usage`.
+- [ ] JavaFX GUI displays current data.
+- [ ] JavaFX GUI displays historical data.
+
+## Business Calculation Checks
+
+- [ ] `community_used <= community_produced` is preserved.
+- [ ] User consumption is covered by community energy first.
+- [ ] Remaining user consumption is assigned to grid energy.
+- [ ] No separate Grid message or Grid producer exists.
+- [ ] A user message at `14:34` updates the `14:00` hourly row.
+- [ ] Producer-before-user case is tested.
+- [ ] User-before-producer case is tested.
+- [ ] Percentage division by zero returns `0`.
+- [ ] `community_depleted` is rounded to two decimals.
+- [ ] `grid_portion` is rounded to two decimals.
+
+## Critical Architecture Checks
+
+- [ ] GUI does not access PostgreSQL directly.
+- [ ] GUI calls the REST API over HTTP.
+- [ ] REST API does not write business data.
+- [ ] REST API does not calculate Usage/Percentage business values.
+- [ ] Producer does not write PostgreSQL directly.
+- [ ] User does not write PostgreSQL directly.
+- [ ] Usage Service and Percentage Service communicate through RabbitMQ, not direct method calls.
+- [ ] Percentage Service reacts to usage update messages and does not poll producer/user events directly.
+
+## RabbitMQ Checks
+
+- [ ] `energy_queue` exists.
+- [ ] `percentage_update_queue` exists.
+- [ ] `energy_queue` has no messages stuck during normal operation.
+- [ ] `percentage_update_queue` has no messages stuck during normal operation.
+- [ ] Message contracts match `docs/message-contract.md`.
+- [ ] Direct-queue design can be explained as one consumer per stream.
+
+## Database Checks
+
+- [ ] Flyway schema history table exists.
+- [ ] `hourly_usage` exists.
+- [ ] `current_percentage` exists.
+- [ ] `hourly_usage` contains recent rows after producer/user run.
+- [ ] `current_percentage` contains recent rows after percentage service run.
+- [ ] Table mapping is documented in `docs/database-schema.md`.
+
+Useful SQL:
+
+```sql
+SELECT * FROM hourly_usage ORDER BY hour DESC LIMIT 10;
+SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;
+```
+
+## REST Checks
+
+- [ ] `GET http://localhost:8080/energy/current` returns JSON.
+- [ ] `GET http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59` returns JSON array.
+- [ ] Invalid date format returns `400 Bad Request`.
+- [ ] `start > end` returns `400 Bad Request`.
+
+## Git And Team Evidence
+
+- [ ] GitHub repository link is submitted.
+- [ ] `git shortlog -sn` shows commits for every team member.
+- [ ] README Team Contributions table maps Git authors to real team members.
+- [ ] Generated `target/` artifacts are not tracked in Git.
+
+## Presentation Readiness
+
+- [ ] Every team member can explain why this is a distributed system.
+- [ ] Every team member can explain synchronous REST vs asynchronous RabbitMQ.
+- [ ] Every team member can explain which component writes which table.
+- [ ] Every team member can explain Usage Service calculation.
+- [ ] Every team member can explain Percentage Service calculation.
+- [ ] Every team member can explain why RabbitMQ helps decouple/scalably buffer work.
+- [ ] Every team member can explain what happens when User messages arrive before Producer messages.
+- [ ] Every team member can explain why GUI does not access the database.
+
+## Demo Evidence
+
+- [ ] Final demo run completed on a clean process list.
+- [ ] No port conflicts.
+- [ ] Logs or screenshots saved if the team wants evidence.
+- [ ] REST JSON observed during the final smoke test.
+- [ ] GUI current and historical views observed during the final smoke test.
+
+## Smoke Test Evidence - 2026-05-16
+
+Fresh database smoke test executed from a clean Java process list.
+
+Commands and scope:
+
+- `docker compose down -v`
+- `docker compose up -d`
+- started `usage-service`, `percentage-service`, `rest-api`, `energy-producer`, and `energy-user` from their packaged JARs
+- used producer fallback weather mode for deterministic local execution
+- stopped producer/user before final assertions so REST and database reads were stable
+- stopped all Java service processes after the smoke test
+
+Observed result:
+
+- PostgreSQL was reachable via `pg_isready`.
+- RabbitMQ Management API was reachable at `http://localhost:15672/api/overview`.
+- `energy_queue` existed with `1` consumer and `0` queued/unacknowledged messages.
+- `percentage_update_queue` existed with `1` consumer and `0` queued/unacknowledged messages.
+- `GET /energy/current` returned:
+
+```json
+{
+  "hour": "2026-05-16T11:00",
+  "communityDepleted": 16.03,
+  "gridPortion": 10.73
+}
+```
+
+- `GET /energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59` returned `1` hourly row.
+- Latest `hourly_usage` row:
+
+```text
+2026-05-16 11:00:00 | community_produced=228.52500000000003 | community_used=36.633326434041905 | grid_used=4.404378895368673
+```
+
+- Latest `current_percentage` row:
+
+```text
+2026-05-16 11:00:00 | community_depleted=16.03 | grid_portion=10.73
+```
+
+Smoke-test artifacts:
+
+```text
+C:\dev\energy_community_project\.agent-local\smoke-20260516-114338\smoke-result.json
+```
+
+Result: backend/message/database/REST smoke test passed. JavaFX was not opened as a visible desktop window during this automated smoke test; GUI build and automated tests were verified separately.

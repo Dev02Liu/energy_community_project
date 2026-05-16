@@ -65,8 +65,8 @@ class CurrentPercentageCalculationServiceTest {
         ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
         verify(currentPercentageRepository).save(captor.capture());
         CurrentPercentageEntity saved = captor.getValue();
-        assertThat(saved.getCommunityDepleted()).isCloseTo(100.0, within(0.01));
-        assertThat(saved.getGridPortion()).isCloseTo(5.63, within(0.01));
+        assertThat(saved.getCommunityDepleted()).isEqualTo(100.0);
+        assertThat(saved.getGridPortion()).isEqualTo(5.63);
     }
 
     // --- Normal case ---
@@ -180,7 +180,21 @@ class CurrentPercentageCalculationServiceTest {
         verify(currentPercentageRepository).save(captor.capture());
         assertThat(captor.getValue().getHour()).isEqualTo(HOUR);
         assertThat(captor.getValue().getCommunityDepleted()).isCloseTo(50.0, within(0.001));
-        assertThat(captor.getValue().getGridPortion()).isCloseTo(28.57, within(0.01));
+        assertThat(captor.getValue().getGridPortion()).isEqualTo(28.57);
+    }
+
+    @Test
+    void percentageValuesAreRoundedToTwoDecimals() {
+        when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(3.0, 1.0, 2.0)));
+        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
+        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.updateCurrentPercentage(HOUR);
+
+        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
+        verify(currentPercentageRepository).save(captor.capture());
+        assertThat(captor.getValue().getCommunityDepleted()).isEqualTo(33.33);
+        assertThat(captor.getValue().getGridPortion()).isEqualTo(66.67);
     }
 
     // --- Missing hourly_usage row ---

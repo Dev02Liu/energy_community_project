@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -266,6 +267,7 @@ class HourlyUsageUpdateServiceTest {
     void messageWithNullDatetimeIsIgnored() {
         EnergyMessage msg = new EnergyMessage();
         msg.setType("USER");
+        msg.setAssociation("COMMUNITY");
         msg.setKwh(1.0);
         msg.setDatetime(null);
 
@@ -278,6 +280,7 @@ class HourlyUsageUpdateServiceTest {
     void messageWithNullTypeIsIgnored() {
         EnergyMessage msg = new EnergyMessage();
         msg.setType(null);
+        msg.setAssociation("COMMUNITY");
         msg.setKwh(1.0);
         msg.setDatetime(LocalDateTime.of(2025, 1, 10, 14, 0, 0));
 
@@ -287,19 +290,80 @@ class HourlyUsageUpdateServiceTest {
     }
 
     @Test
-    void messageWithUnknownTypeDoesNotChangeUsageValues() {
+    void messageWithUnknownTypeDoesNotWriteOrPublish() {
         LocalDateTime hour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
-        HourlyUsageEntity existing = new HourlyUsageEntity(hour, 10.0, 5.0, 1.0);
-        when(hourlyUsageRepository.findById(hour)).thenReturn(Optional.of(existing));
-        when(hourlyUsageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.handleEnergyMessage(message("UNKNOWN", 99.0, hour));
 
+        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
+    }
+
+    @Test
+    void messageWithNegativeKwhDoesNotWriteOrPublish() {
+        EnergyMessage msg = message("USER", -0.1, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
+
+        service.handleEnergyMessage(msg);
+
+        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
+    }
+
+    @Test
+    void messageWithNanKwhDoesNotWriteOrPublish() {
+        EnergyMessage msg = message("PRODUCER", Double.NaN, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
+
+        service.handleEnergyMessage(msg);
+
+        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
+    }
+
+    @Test
+    void messageWithNullAssociationDoesNotWriteOrPublish() {
+        EnergyMessage msg = message("USER", 1.0, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
+        msg.setAssociation(null);
+
+        service.handleEnergyMessage(msg);
+
+        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
+    }
+
+    @Test
+    void messageWithInvalidAssociationDoesNotWriteOrPublish() {
+        EnergyMessage msg = message("PRODUCER", 1.0, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
+        msg.setAssociation("OTHER");
+
+        service.handleEnergyMessage(msg);
+
+        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
+    }
+
+    @Test
+    void userBeforeProducerUsesGridThenLaterProducerOnlyIncreasesProducedForSameHour() {
+        LocalDateTime hour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
+        HourlyUsageEntity afterUser = new HourlyUsageEntity(hour, 0.0, 0.0, 5.0);
+        when(hourlyUsageRepository.findById(hour))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(afterUser));
+        when(hourlyUsageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.handleEnergyMessage(message("USER", 5.0, hour.plusMinutes(1)));
+        service.handleEnergyMessage(message("PRODUCER", 10.0, hour.plusMinutes(34)));
+
         ArgumentCaptor<HourlyUsageEntity> captor = ArgumentCaptor.forClass(HourlyUsageEntity.class);
-        verify(hourlyUsageRepository).save(captor.capture());
-        HourlyUsageEntity saved = captor.getValue();
-        assertThat(saved.getCommunityProduced()).isEqualTo(10.0);
-        assertThat(saved.getCommunityUsed()).isEqualTo(5.0);
-        assertThat(saved.getGridUsed()).isEqualTo(1.0);
+        verify(hourlyUsageRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        HourlyUsageEntity firstSave = captor.getAllValues().get(0);
+        HourlyUsageEntity secondSave = captor.getAllValues().get(1);
+
+        assertThat(firstSave.getHour()).isEqualTo(hour);
+        assertThat(firstSave.getCommunityProduced()).isEqualTo(0.0);
+        assertThat(firstSave.getCommunityUsed()).isEqualTo(0.0);
+        assertThat(firstSave.getGridUsed()).isCloseTo(5.0, within(0.0001));
+
+        assertThat(secondSave.getHour()).isEqualTo(hour);
+        assertThat(secondSave.getCommunityProduced()).isCloseTo(10.0, within(0.0001));
+        assertThat(secondSave.getCommunityUsed()).isEqualTo(0.0);
+        assertThat(secondSave.getGridUsed()).isCloseTo(5.0, within(0.0001));
+
+        verify(rabbitTemplate, org.mockito.Mockito.times(2)).convertAndSend(eq("percentage_update_queue"), any(HourlyUsageUpdatedMessage.class));
+        verifyNoMoreInteractions(rabbitTemplate);
     }
 }

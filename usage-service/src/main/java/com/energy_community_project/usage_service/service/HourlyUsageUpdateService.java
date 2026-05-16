@@ -6,13 +6,20 @@ import com.energy_community_project.usage_service.messaging.HourlyUsageUpdatedMe
 import com.energy_community_project.usage_service.repository.HourlyUsageRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 public class HourlyUsageUpdateService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HourlyUsageUpdateService.class);
+    private static final String ASSOCIATION_COMMUNITY = "COMMUNITY";
+    private static final Set<String> VALID_TYPES = Set.of("PRODUCER", "USER");
 
     private final HourlyUsageRepository hourlyUsageRepository;
     private final RabbitTemplate rabbitTemplate;
@@ -28,7 +35,7 @@ public class HourlyUsageUpdateService {
 
     @Transactional
     public void handleEnergyMessage(EnergyMessage message) {
-        if (message == null || message.getDatetime() == null || message.getType() == null) {
+        if (!isValid(message)) {
             return;
         }
 
@@ -36,14 +43,42 @@ public class HourlyUsageUpdateService {
         HourlyUsageEntity hourlyUsage = hourlyUsageRepository.findById(hour)
                 .orElseGet(() -> new HourlyUsageEntity(hour, 0.0, 0.0, 0.0));
 
-        if ("PRODUCER".equalsIgnoreCase(message.getType())) {
+        if ("PRODUCER".equals(normalizedType(message))) {
             hourlyUsage.setCommunityProduced(hourlyUsage.getCommunityProduced() + message.getKwh());
-        } else if ("USER".equalsIgnoreCase(message.getType())) {
+        } else if ("USER".equals(normalizedType(message))) {
             updateUsage(hourlyUsage, message.getKwh());
         }
 
         hourlyUsageRepository.save(hourlyUsage);
         rabbitTemplate.convertAndSend(updateQueueName, new HourlyUsageUpdatedMessage(hour));
+    }
+
+    private boolean isValid(EnergyMessage message) {
+        if (message == null) {
+            LOGGER.warn("Ignoring null energy message");
+            return false;
+        }
+        if (message.getType() == null || !VALID_TYPES.contains(normalizedType(message))) {
+            LOGGER.warn("Ignoring energy message with invalid type: {}", message.getType());
+            return false;
+        }
+        if (message.getAssociation() == null || !ASSOCIATION_COMMUNITY.equalsIgnoreCase(message.getAssociation())) {
+            LOGGER.warn("Ignoring energy message with invalid association: {}", message.getAssociation());
+            return false;
+        }
+        if (message.getDatetime() == null) {
+            LOGGER.warn("Ignoring energy message with null datetime");
+            return false;
+        }
+        if (!Double.isFinite(message.getKwh()) || message.getKwh() < 0.0) {
+            LOGGER.warn("Ignoring energy message with invalid kWh value: {}", message.getKwh());
+            return false;
+        }
+        return true;
+    }
+
+    private String normalizedType(EnergyMessage message) {
+        return message.getType().trim().toUpperCase();
     }
 
     private void updateUsage(HourlyUsageEntity hourlyUsage, double requestedKwh) {
