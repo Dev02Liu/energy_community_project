@@ -2,6 +2,8 @@
 
 Use this checklist before the final hand-in and before the presentation. The goal is to prove the project as a distributed system, not only as isolated modules.
 
+For the exact manual end-to-end runbook, follow `docs/smoke-test.md`.
+
 ## Build
 
 - [ ] `energy-producer` builds: `cd energy-producer; .\mvnw.cmd clean package`
@@ -134,7 +136,7 @@ SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;
 
 ## Demo Evidence
 
-- [ ] Final demo run completed on a clean process list.
+- [ ] Final demo run completed on a clean process list using `docs/smoke-test.md`.
 - [ ] No port conflicts.
 - [ ] Logs or screenshots saved if the team wants evidence.
 - [ ] REST JSON observed during the final smoke test.
