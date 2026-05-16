@@ -174,3 +174,16 @@ Percentage Service reads hourly_usage and writes current_percentage
 - Do not let Percentage Service consume producer/user messages directly.
 - Update this document when a message field is added, removed, renamed, or changes meaning.
 - Keep payloads backward-compatible where practical because services are independently startable.
+
+## Contract Tests
+
+The JSON contract is protected by service-local tests instead of a shared Java DTO dependency:
+
+| Module | Test | Contract Protected |
+|---|---|---|
+| `energy-producer` | `EnergyMessageContractTest` | Producer `EnergyMessage` serializes `type`, `association`, `kwh`, `datetime` through the Spring AMQP JSON converter |
+| `energy-user` | `EnergyMessageContractTest` | User `EnergyMessage` serializes `type`, `association`, `kwh`, `datetime` through the Spring AMQP JSON converter |
+| `usage-service` | `MessageContractTest` | Documented producer/user JSON examples deserialize to the Usage Service-local `EnergyMessage`; Usage update serializes with `hour` |
+| `percentage-service` | `MessageContractTest` | Documented usage-update JSON deserializes to the Percentage Service-local `HourlyUsageUpdatedMessage` |
+
+If a required JSON field is removed or renamed, these tests fail either at JSON field assertion level or when the service-local DTO no longer exposes the expected value.
