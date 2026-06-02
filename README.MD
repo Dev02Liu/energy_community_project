@@ -376,13 +376,6 @@ For the full repeatable manual smoke test, use [docs/smoke-test.md](docs/smoke-t
 12. Open JavaFX GUI, refresh current values, and query historical data.
 13. Explain the flow: `Producer/User -> RabbitMQ -> Usage -> DB -> RabbitMQ -> Percentage -> DB -> REST -> GUI`.
 
-## Team Contributions
-
-Each team member must have own Git commits. The lecturer explicitly treats missing individual commits as a personal grading risk. Verify before submission:
-
-```powershell
-git shortlog -sn
-```
 
 ## Known Limitations
 
