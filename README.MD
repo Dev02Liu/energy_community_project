@@ -17,6 +17,8 @@ JavaFX GUI      -> REST API -> PostgreSQL
 
 The GUI never connects to PostgreSQL directly. The REST API reads PostgreSQL and does not calculate or write the core business values. Producer and User services do not write to the database.
 
+The labeled presentation-level component diagram is documented in [docs/architecture.md](docs/architecture.md).
+
 ```mermaid
 flowchart LR
     Producer["energy-producer<br/>weather-dependent production"]
@@ -404,6 +406,7 @@ Replace or extend this table with final real names, GitHub usernames, and actual
 ## Documentation
 
 - [docs/documentation-overview.md](docs/documentation-overview.md): documentation index and QA reading path.
+- [docs/architecture.md](docs/architecture.md): labeled component diagram and minimal interface overview.
 - Module documentation:
   - [docs/modules-documentation/energy-producer.md](docs/modules-documentation/energy-producer.md)
   - [docs/modules-documentation/energy-user.md](docs/modules-documentation/energy-user.md)

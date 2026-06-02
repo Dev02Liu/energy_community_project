@@ -45,6 +45,7 @@ flowchart LR
 
 | Document | Purpose |
 |---|---|
+| `docs/architecture.md` | Presentation-level component diagram with explicit interfaces. |
 | `docs/message-contract.md` | RabbitMQ topology, JSON payloads, contract tests. |
 | `docs/database-schema.md` | PostgreSQL table mapping and service read/write responsibilities. |
 | `docs/how-to-run.md` | Detailed startup and troubleshooting instructions. |
@@ -60,7 +61,7 @@ For a reviewer or team member preparing for the final presentation:
 
 1. Read `README.MD` for the high-level system and start commands.
 2. Read this overview.
-3. Read `docs/message-contract.md` and `docs/database-schema.md`.
+3. Read `docs/architecture.md`, `docs/message-contract.md`, and `docs/database-schema.md`.
 4. Read the module document for the component you need to explain.
 5. Execute `docs/smoke-test.md`.
 6. Use `docs/final-readiness-check.md` as the final sign-off checklist.
