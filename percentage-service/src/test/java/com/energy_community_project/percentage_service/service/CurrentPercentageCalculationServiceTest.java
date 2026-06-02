@@ -12,6 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +39,8 @@ class CurrentPercentageCalculationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CurrentPercentageCalculationService(hourlyUsageRepository, currentPercentageRepository);
+        Clock clock = Clock.fixed(HOUR.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        service = new CurrentPercentageCalculationService(hourlyUsageRepository, currentPercentageRepository, clock);
     }
 
     private HourlyUsageEntity usage(double produced, double communityUsed, double gridUsed) {
@@ -184,6 +187,17 @@ class CurrentPercentageCalculationServiceTest {
     }
 
     @Test
+    void stalePercentageRowsAreRemovedBeforeCurrentHourIsSaved() {
+        when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(10.0, 5.0, 0.0)));
+        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
+
+        service.updateCurrentPercentage(HOUR);
+
+        verify(currentPercentageRepository).deleteAllByHourNot(HOUR);
+        verify(currentPercentageRepository).save(any(CurrentPercentageEntity.class));
+    }
+
+    @Test
     void percentageValuesAreRoundedToTwoDecimals() {
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(3.0, 1.0, 2.0)));
         when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
@@ -213,6 +227,13 @@ class CurrentPercentageCalculationServiceTest {
     @Test
     void nullHour_nothingHappens() {
         service.updateCurrentPercentage(null);
+
+        verifyNoInteractions(hourlyUsageRepository, currentPercentageRepository);
+    }
+
+    @Test
+    void pastHour_nothingHappens() {
+        service.updateCurrentPercentage(HOUR.minusHours(1));
 
         verifyNoInteractions(hourlyUsageRepository, currentPercentageRepository);
     }

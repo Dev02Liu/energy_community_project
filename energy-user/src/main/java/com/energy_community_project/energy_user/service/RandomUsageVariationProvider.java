@@ -11,6 +11,6 @@ public class RandomUsageVariationProvider implements UsageVariationProvider {
 
     @Override
     public double nextVariationKwh() {
-        return random.nextDouble() * 3.0;
+        return random.nextDouble() * 0.002;
     }
 }

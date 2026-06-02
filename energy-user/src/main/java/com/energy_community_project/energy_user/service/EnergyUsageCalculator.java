@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Component
 public class EnergyUsageCalculator {
 
-    private static final double BASE_USAGE_KWH = 2.0;
+    private static final double BASE_USAGE_KWH = 0.001;
 
     public double calculateKwh(LocalDateTime timestamp, double variationKwh) {
         double multiplier = multiplierForHour(timestamp.getHour());

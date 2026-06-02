@@ -39,7 +39,7 @@ File: `usage-service/src/main/resources/application.properties`
 
 | Property | Current Value / Meaning |
 |---|---|
-| `server.port` | `8083` |
+| HTTP port | none; this module is a RabbitMQ worker |
 | `app.queue.name` | `energy_queue` |
 | `app.update-queue.name` | `percentage_update_queue` |
 | `spring.datasource.url` | `jdbc:postgresql://localhost:5432/energy_community` |
@@ -125,6 +125,7 @@ sequenceDiagram
     S->>S: validate and truncate datetime to hour
     S->>DB: find or create hourly row
     S->>DB: save updated usage values
+    DB-->>S: commit transaction
     S->>UQ: publish HourlyUsageUpdatedMessage(hour)
 ```
 
@@ -146,8 +147,7 @@ Important checks:
 
 - Consumes `energy_queue`.
 - Writes `hourly_usage`.
-- Publishes `percentage_update_queue`.
+- Publishes `percentage_update_queue` after the database commit.
 - Preserves `communityUsed <= communityProduced`.
 - Handles user-before-producer order according to message order.
 - Contract tests deserialize documented Producer/User JSON.
-

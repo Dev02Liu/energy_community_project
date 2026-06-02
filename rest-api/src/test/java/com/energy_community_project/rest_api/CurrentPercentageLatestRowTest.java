@@ -11,9 +11,7 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies the chosen current_percentage table semantics:
- * one row per hour is stored; GET /current returns the row with the highest hour.
- * See docs/spec-code-mapping.md — "current_percentage Table Semantics".
+ * Verifies repository operations used by the current-hour REST endpoint.
  */
 @SpringBootTest
 @Transactional
@@ -23,7 +21,7 @@ class CurrentPercentageLatestRowTest {
     private CurrentPercentageRepository currentPercentageRepository;
 
     @Test
-    void findFirstByOrderByHourDesc_returnsRowWithHighestHour() {
+    void findById_returnsRequestedCurrentHourInsteadOfAnotherStoredHour() {
         LocalDateTime earlierHour = LocalDateTime.of(2025, 1, 10, 13, 0, 0);
         LocalDateTime laterHour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
 
@@ -40,7 +38,7 @@ class CurrentPercentageLatestRowTest {
         currentPercentageRepository.save(earlier);
         currentPercentageRepository.save(later);
 
-        CurrentPercentageEntity result = currentPercentageRepository.findFirstByOrderByHourDesc();
+        CurrentPercentageEntity result = currentPercentageRepository.findById(laterHour).orElseThrow();
 
         assertThat(result).isNotNull();
         assertThat(result.getHour()).isEqualTo(laterHour);
@@ -49,7 +47,7 @@ class CurrentPercentageLatestRowTest {
     }
 
     @Test
-    void findFirstByOrderByHourDesc_withSingleRow_returnsThatRow() {
+    void findById_withSingleRow_returnsThatRow() {
         LocalDateTime hour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
         CurrentPercentageEntity entity = new CurrentPercentageEntity();
         entity.setHour(hour);
@@ -57,7 +55,7 @@ class CurrentPercentageLatestRowTest {
         entity.setGridPortion(20.0);
         currentPercentageRepository.save(entity);
 
-        CurrentPercentageEntity result = currentPercentageRepository.findFirstByOrderByHourDesc();
+        CurrentPercentageEntity result = currentPercentageRepository.findById(hour).orElseThrow();
 
         assertThat(result).isNotNull();
         assertThat(result.getHour()).isEqualTo(hour);
@@ -81,7 +79,7 @@ class CurrentPercentageLatestRowTest {
         currentPercentageRepository.save(updated);
 
         assertThat(currentPercentageRepository.count()).isEqualTo(1);
-        assertThat(currentPercentageRepository.findFirstByOrderByHourDesc().getCommunityDepleted())
+        assertThat(currentPercentageRepository.findById(hour).orElseThrow().getCommunityDepleted())
                 .isEqualTo(100.0);
     }
 }

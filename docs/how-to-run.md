@@ -11,14 +11,14 @@ This guide starts the complete system from scratch and verifies that every compo
 | Maven Wrapper | included | No separate Maven install needed for the Spring modules |
 | JavaFX SDK | bundled through Maven | Included in the GUI `pom.xml` |
 
-Before the final demo, make sure no old Java service process is still using ports `8080`, `8081`, `8082`, `8083`, or `8084`.
+Before the final demo, make sure no old REST API process is still using port `8080`.
 
 ## System Overview
 
 ```text
-energy-producer  (8081) -> RabbitMQ energy_queue -> usage-service (8083)
-energy-user      (8082) -> RabbitMQ energy_queue -> usage-service (8083)
-usage-service           -> RabbitMQ percentage_update_queue -> percentage-service (8084)
+energy-producer  (publisher, no HTTP port) -> RabbitMQ energy_queue -> usage-service (worker, no HTTP port)
+energy-user      (publisher, no HTTP port) -> RabbitMQ energy_queue -> usage-service (worker, no HTTP port)
+usage-service           -> RabbitMQ percentage_update_queue -> percentage-service (worker, no HTTP port)
 usage-service           -> PostgreSQL hourly_usage
 percentage-service      -> PostgreSQL current_percentage
 rest-api         (8080) -> reads PostgreSQL

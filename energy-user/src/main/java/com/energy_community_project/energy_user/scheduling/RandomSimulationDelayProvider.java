@@ -11,6 +11,6 @@ public class RandomSimulationDelayProvider implements SimulationDelayProvider {
 
     @Override
     public void waitBeforeNextEvent() throws InterruptedException {
-        Thread.sleep(1000L + random.nextInt(4000));
+        Thread.sleep(random.nextInt(4000));
     }
 }

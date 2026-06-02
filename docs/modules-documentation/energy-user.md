@@ -37,10 +37,10 @@ File: `energy-user/src/main/resources/application.properties`
 
 | Property | Current Value / Meaning |
 |---|---|
-| `server.port` | `8082` |
+| HTTP port | none; this module is a RabbitMQ publisher |
 | `app.queue.name` | `energy_queue` |
 | `app.scheduling.enabled` | Enables/disables scheduled message publishing. |
-| `app.scheduling.fixed-delay-ms` | Scheduler fixed delay before the randomized simulation wait. |
+| `app.scheduling.fixed-delay-ms` | `1000`; combined with a randomized `0-3999 ms` wait, events are published every `1-5` seconds. |
 | `spring.autoconfigure.exclude` | Excludes JDBC/JPA autoconfiguration because this module must not use the database. |
 
 ## Consumption Profile
@@ -83,7 +83,7 @@ Published queue: `energy_queue`
 {
   "type": "USER",
   "association": "COMMUNITY",
-  "kwh": 5.0,
+  "kwh": 0.0025,
   "datetime": "2026-05-15T14:34:00"
 }
 ```
@@ -111,4 +111,3 @@ Important checks:
 - kWh depends on time of day and variation.
 - JSON fields match the documented RabbitMQ contract.
 - No database dependency is configured.
-

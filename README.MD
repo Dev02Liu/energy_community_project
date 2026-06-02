@@ -17,18 +17,60 @@ JavaFX GUI      -> REST API -> PostgreSQL
 
 The GUI never connects to PostgreSQL directly. The REST API reads PostgreSQL and does not calculate or write the core business values. Producer and User services do not write to the database.
 
+```mermaid
+flowchart LR
+    Producer["energy-producer<br/>weather-dependent production"]
+    User["energy-user<br/>time-dependent demand"]
+    EnergyQueue["RabbitMQ<br/>energy_queue"]
+    Usage["usage-service<br/>hourly aggregation and grid fallback"]
+    UsageTable[("PostgreSQL<br/>hourly_usage")]
+    UpdateQueue["RabbitMQ<br/>percentage_update_queue"]
+    Percentage["percentage-service<br/>percentage calculation"]
+    PercentageTable[("PostgreSQL<br/>current_percentage")]
+    Api["rest-api<br/>read-only REST endpoints"]
+    Gui["energy-gui<br/>JavaFX dashboard"]
+
+    Producer --> EnergyQueue
+    User --> EnergyQueue
+    EnergyQueue --> Usage
+    Usage --> UsageTable
+    Usage --> UpdateQueue
+    UpdateQueue --> Percentage
+    UsageTable --> Percentage
+    Percentage --> PercentageTable
+    UsageTable --> Api
+    PercentageTable --> Api
+    Api --> Gui
+```
+
 ## Components
 
 | Component | Path | Port | Start Command | Responsibility |
 |---|---|---:|---|---|
-| Energy Producer | `energy-producer` | 8081 | `.\mvnw.cmd spring-boot:run` | Publishes weather-dependent `PRODUCER` messages. |
-| Energy User | `energy-user` | 8082 | `.\mvnw.cmd spring-boot:run` | Publishes time-of-day-dependent `USER` messages. |
-| Usage Service | `usage-service` | 8083 | `.\mvnw.cmd spring-boot:run` | Consumes producer/user messages, aggregates hourly usage, writes `hourly_usage`, publishes usage updates. |
-| Percentage Service | `percentage-service` | 8084 | `.\mvnw.cmd spring-boot:run` | Consumes usage updates, calculates rounded percentages, writes `current_percentage`. |
+| Energy Producer | `energy-producer` | n/a | `.\mvnw.cmd spring-boot:run` | Publishes weather-dependent, randomly varied `PRODUCER` messages. |
+| Energy User | `energy-user` | n/a | `.\mvnw.cmd spring-boot:run` | Publishes time-of-day-dependent `USER` messages. |
+| Usage Service | `usage-service` | n/a | `.\mvnw.cmd spring-boot:run` | Consumes producer/user messages, aggregates hourly usage, writes `hourly_usage`, publishes usage updates after the DB commit. |
+| Percentage Service | `percentage-service` | n/a | `.\mvnw.cmd spring-boot:run` | Consumes usage updates for the current hour, calculates rounded percentages, writes `current_percentage`. |
 | REST API | `rest-api` | 8080 | `.\mvnw.cmd spring-boot:run` | Read-only API for current and historical energy data. |
 | JavaFX GUI | `energy-gui` | n/a | `..\energy-producer\mvnw.cmd -f pom.xml javafx:run` | Desktop GUI that calls only the REST API. |
 
 Each component has its own `pom.xml` and own application entry point. Start components in separate terminals for the final demo.
+
+## Technology Choices
+
+| Technology | Where It Is Used | Why It Is Used |
+|---|---|---|
+| Spring Boot | Five backend applications | Gives each backend component an independent application lifecycle and consistent configuration. |
+| RabbitMQ | Producer/User -> Usage and Usage -> Percentage | Carries asynchronous JSON events so calculation services do not need direct runtime references to each other. |
+| PostgreSQL | Shared persistence | Stores hourly aggregates and calculated percentages so REST reads stable data instead of transient messages. |
+| Flyway + JPA | DB-backed services | Flyway defines the schema; JPA maps Java entities to the validated schema. |
+| Spring Web MVC REST | `rest-api` | Exposes a narrow read-only boundary for clients. |
+| JavaFX | `energy-gui` | Implements the required desktop UI without database or broker access. |
+| Docker Compose | PostgreSQL and RabbitMQ | Starts the required infrastructure repeatably for development and the final demo. |
+
+The GUI uses REST only because it is a presentation client, not a business service. It should not know database credentials, table structure, or RabbitMQ contracts. Keeping the GUI behind `rest-api` also makes the UI replaceable without changing persistence or messaging.
+
+The backend services use RabbitMQ messages because production, consumption, aggregation, and percentage calculation are separate responsibilities. Asynchronous events keep these applications independently startable and allow RabbitMQ to buffer work if a consumer is temporarily slower or starts later.
 
 ## Prerequisites
 
@@ -218,11 +260,45 @@ Implemented tables:
 | Table | Responsibility | Writer | Readers |
 |---|---|---|---|
 | `hourly_usage` | Aggregated hourly energy usage. Conceptually equivalent to `energy_usage_hourly` in the project mapping. | Usage Service | Percentage Service, REST API |
-| `current_percentage` | Current/latest percentage values per hour. | Percentage Service | REST API |
+| `current_percentage` | Percentage values for the current hour only. | Percentage Service | REST API |
 
 Detailed schema mapping is documented in [docs/database-schema.md](docs/database-schema.md).
 
 ## Business Rules
+
+Calculation ownership:
+
+| Calculation | Component | Result |
+|---|---|---|
+| Weather-dependent production amount | Energy Producer | Publishes a `PRODUCER` event to `energy_queue`. |
+| Time-of-day-dependent demand amount | Energy User | Publishes a `USER` event to `energy_queue`. |
+| Hour bucket, community allocation, and grid fallback | Usage Service | Updates `hourly_usage` and publishes an update event. |
+| Community depletion and grid portion percentages | Percentage Service | Updates `current_percentage`. |
+| No calculations | REST API and JavaFX GUI | REST reads stored values; GUI renders REST responses. |
+
+Energy Producer calculates a weather-dependent value between the configured minimum and maximum production:
+
+```text
+daylightFactor = daylight ? 1.0 : 0.12
+cloudFactor = 1.0 - cloudCoverPercent / 100 * 0.70
+radiationFactor = min(shortwaveRadiationWm2 / 800, 1.0)
+weatherFactor = max(radiationFactor, daylightFactor * cloudFactor)
+clampedFactor = clamp(weatherFactor, 0.05, 1.0)
+weatherBasedKwh = minKwh + (maxKwh - minKwh) * clampedFactor
+variation = random(-0.10, 0.10) * (maxKwh - minKwh)
+producedKwh = clamp(weatherBasedKwh + variation, minKwh, maxKwh)
+```
+
+Energy User calculates time-dependent minute demand from a `0.001` kWh base plus a random variation below `0.002` kWh:
+
+```text
+requestedKwh = (0.001 + variationKwh) * timeOfDayMultiplier
+
+timeOfDayMultiplier:
+- 3.0 during 07:00-09:59 and 18:00-21:59
+- 0.5 during 23:00-05:59
+- 1.0 otherwise
+```
 
 Usage Service buckets every message to the full hour:
 
@@ -254,6 +330,8 @@ communityUsed <= communityProduced
 ```
 
 There is no Grid Producer and no Grid Message. Grid energy is the fallback portion when community energy is not sufficient.
+
+Message order is significant. If a `USER` event arrives before a later `PRODUCER` event for the same hour, the initially uncovered demand remains assigned to the grid; the service does not retroactively rebalance earlier usage.
 
 Percentage Service formulas:
 
@@ -327,12 +405,12 @@ Replace or extend this table with final real names, GitHub usernames, and actual
 
 - [docs/documentation-overview.md](docs/documentation-overview.md): documentation index and QA reading path.
 - Module documentation:
-  - [docs/energy-producer.md](docs/energy-producer.md)
-  - [docs/energy-user.md](docs/energy-user.md)
-  - [docs/usage-service.md](docs/usage-service.md)
-  - [docs/percentage-service.md](docs/percentage-service.md)
-  - [docs/rest-api.md](docs/rest-api.md)
-  - [docs/energy-gui.md](docs/energy-gui.md)
+  - [docs/modules-documentation/energy-producer.md](docs/modules-documentation/energy-producer.md)
+  - [docs/modules-documentation/energy-user.md](docs/modules-documentation/energy-user.md)
+  - [docs/modules-documentation/usage-service.md](docs/modules-documentation/usage-service.md)
+  - [docs/modules-documentation/percentage-service.md](docs/modules-documentation/percentage-service.md)
+  - [docs/modules-documentation/rest-api.md](docs/modules-documentation/rest-api.md)
+  - [docs/modules-documentation/energy-gui.md](docs/modules-documentation/energy-gui.md)
 - [docs/message-contract.md](docs/message-contract.md): RabbitMQ topology and JSON contracts.
 - [docs/database-schema.md](docs/database-schema.md): implemented DB schema and conceptual mapping.
 - [docs/how-to-run.md](docs/how-to-run.md): detailed runbook.

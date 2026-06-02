@@ -23,7 +23,7 @@ class EnergyUserServiceTest {
         EnergyUserService service = new EnergyUserService(
                 mock(RabbitTemplate.class),
                 new EnergyUsageCalculator(),
-                () -> 1.0,
+                () -> 0.001,
                 fixedClock,
                 "energy_queue"
         );
@@ -32,7 +32,7 @@ class EnergyUserServiceTest {
 
         assertThat(message.getType()).isEqualTo("USER");
         assertThat(message.getAssociation()).isEqualTo("COMMUNITY");
-        assertThat(message.getKwh()).isEqualTo(3.0);
+        assertThat(message.getKwh()).isEqualTo(0.002);
         assertThat(message.getDatetime()).isEqualTo(LocalDateTime.of(2026, 5, 15, 6, 0));
     }
 }

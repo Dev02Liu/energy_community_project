@@ -40,12 +40,10 @@ File: `percentage-service/src/main/resources/application.properties`
 
 | Property | Current Value / Meaning |
 |---|---|
-| `server.port` | `8084` |
+| HTTP port | none; this module is a RabbitMQ worker |
 | `app.update-queue.name` | `percentage_update_queue` |
 | `spring.datasource.url` | `jdbc:postgresql://localhost:5432/energy_community` |
 | `spring.jpa.hibernate.ddl-auto` | `validate` |
-
-Note: `app.queue.name=energy_queue` is present in properties but this service does not consume Producer/User messages. The active listener uses `percentage_update_queue`.
 
 ## Runtime Flow
 
@@ -93,9 +91,14 @@ sequenceDiagram
 
     Q->>L: HourlyUsageUpdatedMessage(hour)
     L->>S: updateCurrentPercentage(hour)
+    alt delayed event for an older hour
+        S-->>L: ignore event
+    else event for the current hour
     S->>HU: read hourly usage row
     S->>S: calculate rounded percentages
+    S->>CP: delete stale rows for other hours
     S->>CP: upsert percentage row
+    end
 ```
 
 ## Start Command
@@ -120,5 +123,6 @@ Important checks:
 - Writes `current_percentage`.
 - Avoids division by zero.
 - Rounds persisted values to two decimals.
+- Ignores delayed update events for older hours.
+- Removes stale percentage rows when recalculating the current hour.
 - Contract test deserializes documented update JSON.
-

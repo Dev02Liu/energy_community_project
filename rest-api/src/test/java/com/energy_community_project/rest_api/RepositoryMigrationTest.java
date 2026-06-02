@@ -43,6 +43,6 @@ class RepositoryMigrationTest {
         );
 
         assertThat(historical).hasSize(1);
-        assertThat(currentPercentageRepository.findFirstByOrderByHourDesc().getHour()).isEqualTo(hour);
+        assertThat(currentPercentageRepository.findById(hour).orElseThrow().getHour()).isEqualTo(hour);
     }
 }

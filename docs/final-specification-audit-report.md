@@ -3,13 +3,13 @@
 Audit date: 2026-05-16  
 Repository: `C:\dev\energy_community_project`  
 Branch observed: `audit-latest-version`  
-Audit mode: audit-only; no production code changes were made.
+Audit mode: implementation update plus verification.
 
 ## 1. Executive Summary
 
 Overall status: **MOSTLY READY**
 
-Main conclusion: the project implements the required distributed Energy Community system with six independently startable applications, RabbitMQ-based service communication, PostgreSQL persistence, DB-backed REST endpoints, and a JavaFX GUI that calls REST only. All six module builds passed during this audit with **98 tests, 0 failures**. No confirmed P0 / zero-point technical failure was found.
+Main conclusion: the project implements the required distributed Energy Community system with six independently startable applications, RabbitMQ-based service communication, PostgreSQL persistence, DB-backed REST endpoints, and a JavaFX GUI that calls REST only. All six module builds passed during this audit with **103 tests, 0 failures**. No confirmed P0 / zero-point technical failure was found.
 
 P0 risks: **0 confirmed**.
 
@@ -25,7 +25,7 @@ Most important next actions:
 1. Run `docs/smoke-test.md` once with the visible JavaFX GUI before submission and capture evidence.
 2. In the demo, explicitly explain that the GUI historical section displays aggregated kWh totals for the selected range, matching the official specification.
 3. Verify the real team roster against `git shortlog -sn --all` and update README Team Contributions with real names/usernames.
-4. Be prepared to explain that `current_percentage` returns the latest/current row even though older percentage rows can remain in the table.
+4. Explain that `current_percentage` retains only the current-hour row and delayed older-hour events are ignored.
 5. Keep Java 25 / Spring Boot 4.0.3 clearly documented for the final reviewer machine.
 6. Be prepared to explain direct RabbitMQ queues and DB table naming deviations.
 
@@ -78,7 +78,7 @@ Extracted baseline, ordered by source priority:
 - Producer/User messages are hourly input events; Usage Service aggregates them into hourly rows.
 - User demand is covered by community energy first; residual demand becomes grid usage. There is no Grid message producer.
 - Usage Service publishes an update message after valid DB updates; Percentage Service reacts to that update.
-- The official specification describes `current_percentage` as current-hour percentage information; retaining older percentage rows is an implementation deviation unless explained as "latest row is current."
+- The official current-hour semantics are now enforced: stale percentage rows are removed during recalculation and REST reads the exact current-hour row.
 - Percentage formulas:
   - `community_depleted = community_used / community_produced * 100`, or `0` when produced is `0`.
   - `grid_portion = grid_used / (community_used + grid_used) * 100`, or `0` when total usage is `0`.
@@ -130,14 +130,14 @@ Observed implementation:
 - Message publishing: `EnergyProducerService#publishProductionData()` uses `RabbitTemplate.convertAndSend(queueName, msg)`.
 - Weather abstraction: `WeatherClient`, `OpenMeteoWeatherClient`, `FallbackWeatherClient`, `ResilientWeatherClient`.
 - Calculation: `WeatherProductionCalculator`.
-- Config: `app.queue.name=energy_queue`, `server.port=8081`, `app.weather.mode=open-meteo`, fallback documented.
+- Config: `app.queue.name=energy_queue`, no HTTP port, `app.weather.mode=open-meteo`, fallback documented.
 - DB access excluded by `spring.autoconfigure.exclude` and no JPA/PostgreSQL dependency.
 
 Status: **PASS**
 
 Risks:
 
-- P2: uses Spring WebMVC and opens port `8081` although it is not a REST service. This is documented and works, but can create avoidable port conflicts.
+- Production combines weather influence with a small bounded random variation and remains inside the configured kWh range.
 - P3: runtime logs use `System.out.println`; acceptable for demo but less professional than structured logging.
 
 Recommendations:
@@ -156,15 +156,15 @@ Observed implementation:
 - Message publishing: `EnergyUserService#publishUsageData()` uses `RabbitTemplate.convertAndSend`.
 - Calculation: `EnergyUsageCalculator` with peak, normal and night multipliers.
 - Randomness: `UsageVariationProvider` / `RandomUsageVariationProvider`.
-- Config: `app.queue.name=energy_queue`, `server.port=8082`.
+- Config: `app.queue.name=energy_queue`, no HTTP port.
 - DB access excluded by `spring.autoconfigure.exclude`.
 
 Status: **PASS**
 
 Risks:
 
-- P2: peak windows differ slightly from the mapping example (`07-09`, `18-21`, night `23-05`), but they remain plausible and are documented in `docs/energy-user.md`.
-- P2: Spring WebMVC dependency/port is unnecessary for a publisher-only service.
+- P2: peak windows differ slightly from the mapping example (`07-09`, `18-21`, night `23-05`), but they remain plausible and are documented in `docs/modules-documentation/energy-user.md`.
+- The publisher has no unnecessary HTTP dependency or port.
 
 Recommendations:
 
@@ -190,7 +190,7 @@ Status: **PASS**
 
 Risks:
 
-- P2: DB writes and RabbitMQ publish occur in one method/transaction; RabbitMQ publish is not transactionally atomic with DB commit. For this course scope this is acceptable, but it is a real distributed-systems nuance to explain.
+- The RabbitMQ update event is published after the database commit. A transactional outbox is intentionally outside this course scope.
 
 Recommendations:
 
@@ -213,12 +213,12 @@ Status: **PASS**
 
 Risks:
 
-- P2: `current_percentage` is stored as one row per processed hour, while `projektspezifikationen_semesterprojekt.md` says the table "only holds the information of the current hour." The REST API returns the latest row, so the user-facing current view is correct, but the persistence model is slightly more historical than the official wording.
-- P3: `percentage-service/src/main/resources/application.properties` contains `app.queue.name=energy_queue` although this service does not consume that queue. It is documented as unused; remove later to reduce confusion.
+- `current_percentage` retains only current-hour information as required by `projektspezifikationen_semesterprojekt.md`.
+- The Percentage Service config contains only its active `percentage_update_queue`.
 
 Recommendations:
 
-- Be ready to explain that `current_percentage` keeps one row per processed hour and REST treats the latest row as current, or change the service to keep only one current row if the lecturer expects the wording literally.
+- Explain that delayed older-hour events are ignored and stale percentage rows are removed when the current hour is recalculated.
 
 ### 6.5 REST API
 
@@ -264,7 +264,7 @@ Observed implementation:
 - Historical button calls `/energy/historical`.
 - Date parsing supports GUI and ISO formats.
 - GUI has no JPA/JDBC/PostgreSQL/RabbitMQ dependencies.
-- Tests: 21 tests for REST client parsing, URL encoding, date validation, formatting.
+- Tests: 22 tests for REST client parsing, URL encoding, date validation, formatting.
 
 Status: **PASS**
 
@@ -426,7 +426,7 @@ Status codes:
 
 DB access:
 
-- `CurrentPercentageRepository#findFirstByOrderByHourDesc()`.
+- `CurrentPercentageRepository#findById(currentHour)`.
 - `HourlyUsageRepository#findByHourBetween(...)`.
 
 Read-only verification:
@@ -530,7 +530,7 @@ Table responsibility matrix:
 Naming deviations:
 
 - `hourly_usage` instead of `energy_usage_hourly`: documented.
-- `current_percentage` stores rows by `hour`; official text says the table only holds current-hour information. REST resolves this by returning the latest row, but the persistence behavior should be explained during review.
+- `current_percentage` stores only the current-hour row; REST resolves current data with an exact-hour lookup.
 - No `updated_at` / `calculated_at`: documented.
 - `DOUBLE PRECISION` instead of `NUMERIC`: documented less explicitly; P2 precision/review risk.
 
@@ -552,15 +552,15 @@ Tests run during this audit:
 
 | Module | Test Command | Result | Notes |
 |---|---|---|---|
-| `energy-producer` | `.\mvnw.cmd clean package` | PASS, 7 tests | Weather, fallback, production calculator, message contract. |
+| `energy-producer` | `.\mvnw.cmd clean package` | PASS, 8 tests | Weather, fallback, bounded random production variation, message contract. |
 | `energy-user` | `.\mvnw.cmd clean package` | PASS, 5 tests | Usage calculator, fixed-clock message creation, message contract. |
-| `usage-service` | `.\mvnw.cmd clean package` | PASS, 26 tests | Flyway/H2 migration, aggregation, invalid messages, update publish, contract. |
-| `percentage-service` | `.\mvnw.cmd clean package` | PASS, 14 tests | Flyway/H2 migration, formulas, rounding, contract. |
-| `rest-api` | `.\mvnw.cmd clean package` | PASS, 25 tests | Endpoint contracts, date validation, latest row, migration. |
-| `energy-gui` | `..\energy-producer\mvnw.cmd -f pom.xml clean package` | PASS, 21 tests | HTTP parsing, URL encoding, date validation, formatting. |
+| `usage-service` | `.\mvnw.cmd clean package` | PASS, 27 tests | Flyway/H2 migration, aggregation, invalid messages, update publish, contract. |
+| `percentage-service` | `.\mvnw.cmd clean package` | PASS, 16 tests | Flyway/H2 migration, formulas, rounding, contract. |
+| `rest-api` | `.\mvnw.cmd clean package` | PASS, 25 tests | Endpoint contracts, date validation, current-hour row, migration. |
+| `energy-gui` | `..\energy-producer\mvnw.cmd -f pom.xml clean package` | PASS, 22 tests | HTTP parsing, URL encoding, date validation, formatting. |
 | Docker | `docker compose config; docker compose ps` | PASS | Config valid; `energy-db` and `energy-mq` running. |
 
-Total: **98 tests, 0 failures**.
+Total: **103 tests, 0 failures**.
 
 Warnings observed:
 
@@ -684,10 +684,9 @@ Manual P0-sensitive checks:
    - Affected files: RabbitMQ config, docs.
    - Recommended fix: no urgent change; explain direct queue design. Add exchange only if lecturer explicitly expects it.
 
-5. Problem: Producer/User include WebMVC and open service ports though they do not expose REST APIs.
-   - Evidence: `spring-boot-starter-webmvc`, `server.port=8081/8082`.
-   - Affected files: Producer/User `pom.xml` and properties.
-   - Recommended fix: acceptable if documented; optionally remove WebMVC after regression testing.
+5. Resolved: Producer/User are RabbitMQ-only publishers without WebMVC or HTTP ports.
+   - Evidence: both publisher `pom.xml` files use AMQP plus JSON support only; their properties do not configure `server.port`.
+   - Affected files: Producer/User `pom.xml` files and properties.
 
 6. Problem: empty historical GUI result displays generic error text.
    - Evidence: `showHistoricalUsage()` calls `showHistoricalError(ERROR_MESSAGE)` for empty entries.
@@ -696,14 +695,13 @@ Manual P0-sensitive checks:
 
 7. Problem: JavaFX historical data is not per-hour inspectable.
    - Evidence: `EnergyDashboardController#showHistoricalUsage()` sums returned rows into labels; no `TableView`.
-   - Affected files: `energy-gui/src/main/java/.../EnergyDashboardController.java`, `docs/energy-gui.md`.
+   - Affected files: `energy-gui/src/main/java/.../EnergyDashboardController.java`, `docs/modules-documentation/energy-gui.md`.
    - Recommended fix: optional per-hour `TableView<HistoricalUsageDTO>` if the team wants stronger demo visibility.
    - Reason: not required by `projektspezifikationen_semesterprojekt.md`, which describes aggregated historical values for the selected range.
 
-8. Problem: `current_percentage` stores percentage rows per processed hour, while the official specification says the table only holds current-hour information.
-   - Evidence: `CurrentPercentageCalculationService` upserts by update `hour`; REST returns the latest row.
-   - Affected files: `percentage-service/src/main/java/.../CurrentPercentageCalculationService.java`, `rest-api/src/main/java/.../CurrentPercentageRepository.java`, `docs/database-schema.md`.
-   - Recommended fix: leave as documented if accepted by the team, because the REST current endpoint is correct; otherwise change persistence to maintain only the latest/current row and retest.
+8. Resolved: `current_percentage` now retains current-hour information only.
+   - Evidence: `CurrentPercentageCalculationService` ignores old-hour events and removes stale rows; REST reads the exact current-hour primary key.
+   - Affected files: `percentage-service/src/main/java/.../CurrentPercentageCalculationService.java`, `rest-api/src/main/java/.../EnergyController.java`, `docs/database-schema.md`.
 
 ### P3 - Optional improvement
 
@@ -713,8 +711,7 @@ Manual P0-sensitive checks:
 2. Problem: Spring test warnings for Mockito dynamic agent on Java 25.
    - Recommended improvement: configure Mockito agent when upgrading test setup; not urgent for submission.
 
-3. Problem: `percentage-service` has unused `app.queue.name`.
-   - Recommended improvement: remove property or keep documented as unused.
+3. Resolved: `percentage-service` configuration contains only the active `app.update-queue.name`.
 
 4. Problem: demo credentials are hardcoded.
    - Recommended improvement: acceptable for local course demo; for production use environment variables.

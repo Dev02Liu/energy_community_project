@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDateTime;
 
 @Service
@@ -16,16 +17,19 @@ public class CurrentPercentageCalculationService {
 
     private final HourlyUsageRepository hourlyUsageRepository;
     private final CurrentPercentageRepository currentPercentageRepository;
+    private final Clock clock;
 
     public CurrentPercentageCalculationService(HourlyUsageRepository hourlyUsageRepository,
-                                              CurrentPercentageRepository currentPercentageRepository) {
+                                              CurrentPercentageRepository currentPercentageRepository,
+                                              Clock clock) {
         this.hourlyUsageRepository = hourlyUsageRepository;
         this.currentPercentageRepository = currentPercentageRepository;
+        this.clock = clock;
     }
 
     @Transactional
     public void updateCurrentPercentage(LocalDateTime hour) {
-        if (hour == null) {
+        if (hour == null || !hour.equals(currentHour())) {
             return;
         }
 
@@ -49,7 +53,12 @@ public class CurrentPercentageCalculationService {
         currentPercentage.setCommunityDepleted(communityDepleted);
         currentPercentage.setGridPortion(gridPortion);
 
+        currentPercentageRepository.deleteAllByHourNot(hour);
         currentPercentageRepository.save(currentPercentage);
+    }
+
+    private LocalDateTime currentHour() {
+        return LocalDateTime.now(clock).withMinute(0).withSecond(0).withNano(0);
     }
 
     private double roundPercentage(double value) {

@@ -32,7 +32,7 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 | `weather/OpenMeteoWeatherClient` | Reads current weather from Open-Meteo. |
 | `weather/FallbackWeatherClient` | Local fallback weather source. |
 | `weather/ResilientWeatherClient` | Uses Open-Meteo and falls back when remote weather fails. |
-| `weather/WeatherProductionCalculator` | Converts weather snapshot into plausible kWh production. |
+| `weather/WeatherProductionCalculator` | Converts weather snapshot into plausible kWh production with small bounded random variation. |
 | `weather/WeatherSnapshot` | Immutable weather input model for production calculation. |
 
 ## Configuration
@@ -41,11 +41,11 @@ File: `energy-producer/src/main/resources/application.properties`
 
 | Property | Current Value / Meaning |
 |---|---|
-| `server.port` | `8081` |
+| HTTP port | none; this module is a RabbitMQ publisher |
 | `app.queue.name` | `energy_queue` |
 | `app.scheduling.enabled` | Enables/disables scheduled message publishing. |
-| `app.scheduling.fixed-delay-ms` | Scheduler fixed delay before the randomized simulation wait. |
-| `app.production.min-kwh` / `max-kwh` | Production calculator bounds. |
+| `app.scheduling.fixed-delay-ms` | `1000`; combined with a randomized `0-3999 ms` wait, events are published every `1-5` seconds. |
+| `app.production.min-kwh` / `max-kwh` | `0.001` / `0.006`; minute-scale production calculator bounds. |
 | `app.weather.mode` | `open-meteo` by default; can be overridden to `fallback`. |
 | `spring.autoconfigure.exclude` | Excludes JDBC/JPA autoconfiguration because this module must not use the database. |
 
@@ -75,7 +75,7 @@ Published queue: `energy_queue`
 {
   "type": "PRODUCER",
   "association": "COMMUNITY",
-  "kwh": 18.7,
+  "kwh": 0.0047,
   "datetime": "2026-05-15T14:33:00"
 }
 ```
@@ -107,7 +107,6 @@ Important checks:
 
 - Message has `type=PRODUCER`.
 - Message has `association=COMMUNITY`.
-- kWh is weather-dependent and bounded.
+- kWh is weather-dependent, randomly varied, and bounded.
 - JSON fields match the documented RabbitMQ contract.
 - No database dependency is configured.
-

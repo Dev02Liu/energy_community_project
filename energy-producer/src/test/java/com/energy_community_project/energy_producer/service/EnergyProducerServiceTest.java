@@ -27,7 +27,7 @@ class EnergyProducerServiceTest {
         EnergyProducerService service = new EnergyProducerService(
                 mock(RabbitTemplate.class),
                 weatherClient,
-                new WeatherProductionCalculator(10.0, 30.0),
+                new WeatherProductionCalculator(0.001, 0.006),
                 fixedClock,
                 "energy_queue"
         );
@@ -36,7 +36,7 @@ class EnergyProducerServiceTest {
 
         assertThat(message.getType()).isEqualTo("PRODUCER");
         assertThat(message.getAssociation()).isEqualTo("COMMUNITY");
-        assertThat(message.getKwh()).isGreaterThan(10.0);
+        assertThat(message.getKwh()).isBetween(0.001, 0.006);
         assertThat(message.getDatetime()).isEqualTo(LocalDateTime.of(2026, 5, 15, 12, 33));
     }
 }
