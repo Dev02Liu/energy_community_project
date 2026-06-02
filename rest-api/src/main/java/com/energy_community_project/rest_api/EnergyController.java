@@ -3,6 +3,7 @@ package com.energy_community_project.rest_api;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -23,20 +24,25 @@ public class EnergyController {
 
     private final CurrentPercentageRepository currentPercentageRepository;
     private final HourlyUsageRepository hourlyUsageRepository;
+    private final Clock clock;
 
-    public EnergyController(CurrentPercentageRepository currentPercentageRepository, HourlyUsageRepository hourlyUsageRepository) {
+    public EnergyController(CurrentPercentageRepository currentPercentageRepository,
+                            HourlyUsageRepository hourlyUsageRepository,
+                            Clock clock) {
         this.currentPercentageRepository = currentPercentageRepository;
         this.hourlyUsageRepository = hourlyUsageRepository;
+        this.clock = clock;
     }
 
     // Endpunkt für die aktuelle Stunde
     @GetMapping("/current")
     public CurrentPercentageDTO getCurrentPercentage() {
-        CurrentPercentageEntity latest = currentPercentageRepository.findFirstByOrderByHourDesc();
-        if (latest == null) {
-            return new CurrentPercentageDTO(LocalDateTime.now().toString(), 0.0, 0.0);
+        LocalDateTime currentHour = LocalDateTime.now(clock).withMinute(0).withSecond(0).withNano(0);
+        CurrentPercentageEntity current = currentPercentageRepository.findById(currentHour).orElse(null);
+        if (current == null) {
+            return new CurrentPercentageDTO(currentHour.toString(), 0.0, 0.0);
         }
-        return new CurrentPercentageDTO(latest.getHour().toString(), latest.getCommunityDepleted(), latest.getGridPortion());
+        return new CurrentPercentageDTO(current.getHour().toString(), current.getCommunityDepleted(), current.getGridPortion());
     }
 
     // Endpunkt für historische Daten mit Zeitfilter

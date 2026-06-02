@@ -34,12 +34,12 @@ flowchart LR
 
 | Module | Documentation | Runtime Responsibility |
 |---|---|---|
-| `energy-producer` | `docs/energy-producer.md` | Publishes weather-dependent `PRODUCER` messages to RabbitMQ. |
-| `energy-user` | `docs/energy-user.md` | Publishes time-of-day-dependent `USER` messages to RabbitMQ. |
-| `usage-service` | `docs/usage-service.md` | Consumes energy messages, updates hourly usage, publishes usage updates. |
-| `percentage-service` | `docs/percentage-service.md` | Consumes usage updates, calculates current percentages, writes percentage data. |
-| `rest-api` | `docs/rest-api.md` | Provides read-only DB-backed REST endpoints for GUI. |
-| `energy-gui` | `docs/energy-gui.md` | JavaFX client that calls only the REST API. |
+| `energy-producer` | `docs/modules-documentation/energy-producer.md` | Publishes weather-dependent `PRODUCER` messages to RabbitMQ. |
+| `energy-user` | `docs/modules-documentation/energy-user.md` | Publishes time-of-day-dependent `USER` messages to RabbitMQ. |
+| `usage-service` | `docs/modules-documentation/usage-service.md` | Consumes energy messages, updates hourly usage, publishes usage updates. |
+| `percentage-service` | `docs/modules-documentation/percentage-service.md` | Consumes usage updates, calculates current percentages, writes percentage data. |
+| `rest-api` | `docs/modules-documentation/rest-api.md` | Provides read-only DB-backed REST endpoints for GUI. |
+| `energy-gui` | `docs/modules-documentation/energy-gui.md` | JavaFX client that calls only the REST API. |
 
 ## Cross-Cutting Documentation
 
@@ -52,7 +52,7 @@ flowchart LR
 | `docs/final-readiness-check.md` | Final pre-submission checklist and last smoke evidence. |
 | `docs/spec-code-mapping.md` | Mapping between specification/grading risks and implementation. |
 | `docs/project-status.md` | Current readiness state and remaining manual checks. |
-| `docs/project-audit-report.md` | Historical audit baseline. Some findings may have been resolved after the report. |
+| `docs/final-specification-audit-report.md` | Detailed specification audit and presentation-readiness baseline. |
 
 ## QA Reading Path
 
@@ -64,4 +64,3 @@ For a reviewer or team member preparing for the final presentation:
 4. Read the module document for the component you need to explain.
 5. Execute `docs/smoke-test.md`.
 6. Use `docs/final-readiness-check.md` as the final sign-off checklist.
-

@@ -38,14 +38,18 @@ class EnergyEndpointContractTest {
 
     private MockMvc mvc;
 
-    private static final LocalDateTime HOUR = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
+    private static final LocalDateTime HOUR = LocalDateTime.now()
+            .withMinute(0)
+            .withSecond(0)
+            .withNano(0);
+    private static final LocalDateTime HISTORICAL_HOUR = LocalDateTime.of(2025, 1, 10, 14, 0);
 
     @BeforeEach
     void setUp() {
         mvc = MockMvcBuilders.webAppContextSetup(wac).build();
 
         HourlyUsageEntity usage = new HourlyUsageEntity();
-        usage.setHour(HOUR);
+        usage.setHour(HISTORICAL_HOUR);
         usage.setCommunityProduced(18.05);
         usage.setCommunityUsed(18.05);
         usage.setGridUsed(1.076);
@@ -64,10 +68,10 @@ class EnergyEndpointContractTest {
     // --- GET /energy/current ---
 
     @Test
-    void getCurrent_returnsLatestRowFromDatabase() throws Exception {
+    void getCurrent_returnsCurrentHourRowFromDatabase() throws Exception {
         mvc.perform(get("/energy/current"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.hour").value("2025-01-10T14:00"))
+                .andExpect(jsonPath("$.hour").value(HOUR.toString()))
                 .andExpect(jsonPath("$.communityDepleted").value(100.0))
                 .andExpect(jsonPath("$.gridPortion").value(5.63));
     }
@@ -82,18 +86,17 @@ class EnergyEndpointContractTest {
     }
 
     @Test
-    void getCurrent_whenMultipleHours_returnsLatest() throws Exception {
-        LocalDateTime laterHour = LocalDateTime.of(2025, 1, 10, 15, 0, 0);
-        CurrentPercentageEntity latest = new CurrentPercentageEntity();
-        latest.setHour(laterHour);
-        latest.setCommunityDepleted(75.0);
-        latest.setGridPortion(12.0);
-        currentPercentageRepository.saveAndFlush(latest);
+    void getCurrent_whenPastRowAlsoExists_returnsCurrentHour() throws Exception {
+        CurrentPercentageEntity stale = new CurrentPercentageEntity();
+        stale.setHour(HOUR.minusHours(1));
+        stale.setCommunityDepleted(75.0);
+        stale.setGridPortion(12.0);
+        currentPercentageRepository.saveAndFlush(stale);
 
         mvc.perform(get("/energy/current"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.hour").value("2025-01-10T15:00"))
-                .andExpect(jsonPath("$.communityDepleted").value(75.0));
+                .andExpect(jsonPath("$.hour").value(HOUR.toString()))
+                .andExpect(jsonPath("$.communityDepleted").value(100.0));
     }
 
     // --- GET /energy/historical with ISO format ---

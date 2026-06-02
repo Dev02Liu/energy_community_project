@@ -93,7 +93,7 @@ Validation in `usage-service`:
 {
   "type": "PRODUCER",
   "association": "COMMUNITY",
-  "kwh": 18.7,
+  "kwh": 0.0047,
   "datetime": "2026-05-15T14:33:00"
 }
 ```
@@ -102,7 +102,7 @@ Effect:
 
 ```text
 hour = 2026-05-15T14:00:00
-hourly_usage.community_produced += 18.7
+hourly_usage.community_produced += 0.0047
 ```
 
 ## User Message Example
@@ -111,7 +111,7 @@ hourly_usage.community_produced += 18.7
 {
   "type": "USER",
   "association": "COMMUNITY",
-  "kwh": 5.0,
+  "kwh": 0.0025,
   "datetime": "2026-05-15T14:34:00"
 }
 ```

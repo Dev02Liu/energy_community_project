@@ -19,7 +19,7 @@ This means Flyway is the source of truth for table creation and Hibernate only v
 | Conceptual Specification Table | Implemented Table | Reason / Meaning |
 |---|---|---|
 | `energy_usage_hourly` | `hourly_usage` | Stores the same hourly aggregated usage values. The shorter implementation name is used consistently by JPA, Flyway, REST, Usage Service, and Percentage Service. |
-| `current_percentage` | `current_percentage` | Stores calculated percentage values per hour. REST returns the latest row for `/energy/current`. |
+| `current_percentage` | `current_percentage` | Stores calculated percentage values for the current hour only. |
 
 ## `hourly_usage`
 
@@ -77,7 +77,7 @@ Purpose:
 - stores calculated current percentage values,
 - is written by Current Percentage Service after a usage update message,
 - is read by REST API for `/energy/current`,
-- keeps one row per hour and REST returns the latest hour.
+- keeps only the current-hour row; stale percentage rows are removed when the current hour is recalculated.
 
 Columns:
 

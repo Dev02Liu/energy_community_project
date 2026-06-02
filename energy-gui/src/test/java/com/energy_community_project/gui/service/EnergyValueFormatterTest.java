@@ -44,6 +44,11 @@ class EnergyValueFormatterTest {
     }
 
     @Test
+    void formatKwh_minuteScaleValue_preservesUsefulPrecision() {
+        assertThat(formatter.formatKwh(0.0047)).isEqualTo("0.0047");
+    }
+
+    @Test
     void formatKwh_trailingZerosAreDropped() {
         assertThat(formatter.formatKwh(18.10)).isEqualTo("18.1");
     }

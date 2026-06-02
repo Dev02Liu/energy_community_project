@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -50,7 +52,22 @@ public class HourlyUsageUpdateService {
         }
 
         hourlyUsageRepository.save(hourlyUsage);
-        rabbitTemplate.convertAndSend(updateQueueName, new HourlyUsageUpdatedMessage(hour));
+        publishUpdateAfterCommit(hour);
+    }
+
+    private void publishUpdateAfterCommit(LocalDateTime hour) {
+        HourlyUsageUpdatedMessage updateMessage = new HourlyUsageUpdatedMessage(hour);
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            rabbitTemplate.convertAndSend(updateQueueName, updateMessage);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                rabbitTemplate.convertAndSend(updateQueueName, updateMessage);
+            }
+        });
     }
 
     private boolean isValid(EnergyMessage message) {

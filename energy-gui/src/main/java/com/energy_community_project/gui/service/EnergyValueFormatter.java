@@ -6,7 +6,7 @@ import java.util.Locale;
 
 public class EnergyValueFormatter {
 
-    private final DecimalFormat decimalFormat = new DecimalFormat("0.###", new DecimalFormatSymbols(Locale.ENGLISH));
+    private final DecimalFormat decimalFormat = new DecimalFormat("0.#####", new DecimalFormatSymbols(Locale.ENGLISH));
 
     public String formatPercent(double value) {
         return decimalFormat.format(value);

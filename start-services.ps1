@@ -14,5 +14,5 @@ foreach ($service in $services) {
 }
 
 Write-Host "All Spring Boot services have been started!"
-Write-Host "To start the GUI, run: cd energy-gui; mvn compile javafx:run"
+Write-Host "To start the GUI, run: cd energy-gui; ..\energy-producer\mvnw.cmd -f pom.xml javafx:run"
 

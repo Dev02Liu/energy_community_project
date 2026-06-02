@@ -29,7 +29,7 @@ It reads DB-backed data from PostgreSQL and does not calculate or write the core
 | `HistoricalUsageDTO` | Response DTO for historical hourly usage data. |
 | `entity/CurrentPercentageEntity` | Read model for table `current_percentage`. |
 | `entity/HourlyUsageEntity` | Read model for table `hourly_usage`. |
-| `CurrentPercentageRepository` | Reads the latest percentage row. |
+| `CurrentPercentageRepository` | Reads the percentage row for the current hour. |
 | `HourlyUsageRepository` | Reads hourly usage rows by time range. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for schema validation/recreation. |
 
@@ -48,7 +48,7 @@ File: `rest-api/src/main/resources/application.properties`
 
 | Method | Path | Behavior |
 |---|---|---|
-| `GET` | `/energy/current` | Returns latest row from `current_percentage`; returns zero values if no row exists. |
+| `GET` | `/energy/current` | Returns the current-hour row from `current_percentage`; returns zero values if no current-hour row exists. |
 | `GET` | `/energy/historical?start=...&end=...` | Returns rows from `hourly_usage` between `start` and `end`. |
 
 Accepted date formats for historical parameters:
@@ -87,7 +87,7 @@ sequenceDiagram
     participant HU as hourly_usage
 
     GUI->>API: GET /energy/current
-    API->>CP: find latest percentage row
+    API->>CP: find percentage row for current hour
     CP-->>API: current row or none
     API-->>GUI: CurrentPercentageDTO
 
@@ -126,4 +126,3 @@ Important checks:
 - It does not publish RabbitMQ messages.
 - It does not write Usage or Percentage business values.
 - It returns DTOs rather than raw JPA entities.
-

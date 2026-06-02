@@ -20,13 +20,13 @@ Required on the demo machine:
 - Docker Desktop running.
 - Java 25 installed and on `PATH`.
 - Repository checked out locally.
-- Ports free: `5432`, `5672`, `15672`, `8080`, `8081`, `8082`, `8083`, `8084`.
+- Ports free: `5432`, `5672`, `15672`, `8080`.
 - No old Java service processes running.
 
 Check ports:
 
 ```powershell
-netstat -ano | findstr ":8080 :8081 :8082 :8083 :8084 :5432 :5672 :15672"
+netstat -ano | findstr ":8080 :5432 :5672 :15672"
 ```
 
 If old Java service processes are still running, close the related terminals or stop them before starting.
@@ -96,7 +96,7 @@ cd C:\dev\energy_community_project\usage-service
 
 Expected:
 
-- Spring Boot starts on port `8083`.
+- Spring Boot logs `Started UsageServiceApplication`. This worker does not open an HTTP port.
 - Listener waits on `energy_queue`.
 
 ### Terminal 2 - Percentage Service
@@ -108,7 +108,7 @@ cd C:\dev\energy_community_project\percentage-service
 
 Expected:
 
-- Spring Boot starts on port `8084`.
+- Spring Boot logs `Started PercentageServiceApplication`. This worker does not open an HTTP port.
 - Listener waits on `percentage_update_queue`.
 
 ### Terminal 3 - REST API
@@ -141,7 +141,7 @@ cd C:\dev\energy_community_project\energy-producer
 
 Expected:
 
-- Spring Boot starts on port `8081`.
+- Spring Boot starts as a RabbitMQ publisher without an HTTP port.
 - Logs show `PRODUCER` messages being sent.
 
 ### Terminal 5 - Energy User
@@ -153,7 +153,7 @@ cd C:\dev\energy_community_project\energy-user
 
 Expected:
 
-- Spring Boot starts on port `8082`.
+- Spring Boot starts as a RabbitMQ publisher without an HTTP port.
 - Logs show `USER` messages being sent.
 
 ### Terminal 6 - JavaFX GUI
@@ -371,7 +371,7 @@ Observed:
 - `percentage_update_queue`: `1` consumer, `0` messages, `0` unacknowledged.
 - `GET /energy/current` returned DB-backed JSON.
 - `GET /energy/historical` returned an hourly row.
-- `hourly_usage` and `current_percentage` contained matching latest-hour rows.
+- `hourly_usage` and `current_percentage` contained matching current-hour rows.
 
 Artifact:
 

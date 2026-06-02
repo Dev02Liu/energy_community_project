@@ -33,7 +33,7 @@ public class EnergyUserService {
         EnergyMessage msg = createUsageMessage();
 
         rabbitTemplate.convertAndSend(queueName, msg);
-        System.out.println("Sent: " + msg.getType() + " - " + String.format("%.2f", msg.getKwh()) + " kWh");
+        System.out.println("Sent: " + msg.getType() + " - " + String.format("%.5f", msg.getKwh()) + " kWh");
     }
 
     public EnergyMessage createUsageMessage() {

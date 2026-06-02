@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class WeatherProductionCalculatorTest {
 
-    private final WeatherProductionCalculator calculator = new WeatherProductionCalculator(10.0, 30.0);
+    private final WeatherProductionCalculator calculator = new WeatherProductionCalculator(0.001, 0.006);
 
     @Test
     void sunnyHighRadiationWeatherProducesMoreKwhThanCloudyWeather() {
@@ -25,6 +25,20 @@ class WeatherProductionCalculatorTest {
 
         double producedKwh = calculator.calculateKwh(night);
 
-        assertThat(producedKwh).isBetween(10.0, 30.0);
+        assertThat(producedKwh).isBetween(0.001, 0.006);
+    }
+
+    @Test
+    void stableWeatherReceivesBoundedVariation() {
+        WeatherSnapshot stableWeather = new WeatherSnapshot(40.0, true, 400.0);
+        WeatherProductionCalculator lowerVariation = new WeatherProductionCalculator(0.001, 0.006, () -> -0.10);
+        WeatherProductionCalculator upperVariation = new WeatherProductionCalculator(0.001, 0.006, () -> 0.10);
+
+        double lowerKwh = lowerVariation.calculateKwh(stableWeather);
+        double upperKwh = upperVariation.calculateKwh(stableWeather);
+
+        assertThat(lowerKwh).isBetween(0.001, 0.006);
+        assertThat(upperKwh).isBetween(0.001, 0.006);
+        assertThat(upperKwh).isGreaterThan(lowerKwh);
     }
 }

@@ -10,8 +10,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,23 +31,25 @@ class EnergyControllerTest {
     private HourlyUsageRepository hourlyUsageRepository;
 
     private MockMvc mvc;
+    private static final LocalDateTime CURRENT_HOUR = LocalDateTime.of(2025, 1, 10, 14, 0);
 
     @BeforeEach
     void setUp() {
-        EnergyController controller = new EnergyController(currentPercentageRepository, hourlyUsageRepository);
+        Clock clock = Clock.fixed(CURRENT_HOUR.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        EnergyController controller = new EnergyController(currentPercentageRepository, hourlyUsageRepository, clock);
         mvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
     // --- GET /energy/current ---
 
     @Test
-    void getCurrent_returnsLatestPercentageRow() throws Exception {
-        LocalDateTime hour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
+    void getCurrent_returnsCurrentPercentageRow() throws Exception {
+        LocalDateTime hour = CURRENT_HOUR;
         CurrentPercentageEntity entity = new CurrentPercentageEntity();
         entity.setHour(hour);
         entity.setCommunityDepleted(100.0);
         entity.setGridPortion(5.63);
-        when(currentPercentageRepository.findFirstByOrderByHourDesc()).thenReturn(entity);
+        when(currentPercentageRepository.findById(CURRENT_HOUR)).thenReturn(Optional.of(entity));
 
         mvc.perform(get("/energy/current"))
                 .andExpect(status().isOk())
@@ -55,7 +60,7 @@ class EnergyControllerTest {
 
     @Test
     void getCurrent_whenNoDataExists_returnsZeros() throws Exception {
-        when(currentPercentageRepository.findFirstByOrderByHourDesc()).thenReturn(null);
+        when(currentPercentageRepository.findById(CURRENT_HOUR)).thenReturn(Optional.empty());
 
         mvc.perform(get("/energy/current"))
                 .andExpect(status().isOk())
@@ -64,18 +69,14 @@ class EnergyControllerTest {
     }
 
     @Test
-    void getCurrent_whenMultipleRowsExist_returnsRowWithHighestHour() throws Exception {
-        LocalDateTime latestHour = LocalDateTime.of(2025, 1, 10, 15, 0, 0);
-        CurrentPercentageEntity latest = new CurrentPercentageEntity();
-        latest.setHour(latestHour);
-        latest.setCommunityDepleted(75.0);
-        latest.setGridPortion(12.5);
-        when(currentPercentageRepository.findFirstByOrderByHourDesc()).thenReturn(latest);
+    void getCurrent_whenOnlyPastRowsExist_returnsZeros() throws Exception {
+        when(currentPercentageRepository.findById(CURRENT_HOUR)).thenReturn(Optional.empty());
 
         mvc.perform(get("/energy/current"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.hour").value("2025-01-10T15:00"))
-                .andExpect(jsonPath("$.communityDepleted").value(75.0));
+                .andExpect(jsonPath("$.hour").value("2025-01-10T14:00"))
+                .andExpect(jsonPath("$.communityDepleted").value(0.0))
+                .andExpect(jsonPath("$.gridPortion").value(0.0));
     }
 
     // --- GET /energy/historical ---
