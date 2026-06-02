@@ -384,16 +384,6 @@ Each team member must have own Git commits. The lecturer explicitly treats missi
 git shortlog -sn
 ```
 
-Observed local commit authors during audit:
-
-| Git Author | Commits Observed | Main Contribution Notes |
-|---|---:|---|
-| OnlyMajorG | 32 | Verify real name and contributions before submission. |
-| Yijie Liu | 12 | Verify real name and contributions before submission. |
-| stefangirgis | 7 | Verify real name and contributions before submission. |
-
-Replace or extend this table with final real names, GitHub usernames, and actual contribution areas before hand-in if the submission requires personal attribution.
-
 ## Known Limitations
 
 - The project uses Java 25 and Spring Boot 4.0.3 instead of the lecture reference versions. This is documented as an environment prerequisite.
