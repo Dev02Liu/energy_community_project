@@ -8,11 +8,11 @@ import javafx.stage.Stage;
 
 public class EnergyGuiApplication extends Application {
 
-    private static final String BASE_URL = "http://localhost:8080";
+    private static final String DEFAULT_BASE_URL = "http://localhost:8080";
 
     @Override
     public void start(Stage stage) {
-        EnergyApiClient apiClient = new EnergyApiClient(BASE_URL);
+        EnergyApiClient apiClient = new EnergyApiClient(resolveBaseUrl());
         EnergyDashboardController controller = new EnergyDashboardController(apiClient);
 
         stage.setTitle("Energy Community GUI");
@@ -20,5 +20,22 @@ public class EnergyGuiApplication extends Application {
         stage.show();
 
         controller.loadCurrentPercentages();
+    }
+
+    /**
+     * Resolves the REST API base URL. Overrideable without recompiling via the
+     * {@code energy.api.base-url} system property or the {@code ENERGY_API_BASE_URL}
+     * environment variable; falls back to {@value #DEFAULT_BASE_URL}.
+     */
+    static String resolveBaseUrl() {
+        String property = System.getProperty("energy.api.base-url");
+        if (property != null && !property.isBlank()) {
+            return property.trim();
+        }
+        String env = System.getenv("ENERGY_API_BASE_URL");
+        if (env != null && !env.isBlank()) {
+            return env.trim();
+        }
+        return DEFAULT_BASE_URL;
     }
 }

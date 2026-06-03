@@ -30,6 +30,29 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 | `dto/HistoricalUsageDTO` | DTO for `/energy/historical`. |
 | `service/EnergyValueFormatter` | Formats percentages and kWh values for labels. |
 
+## Configuration
+
+The GUI reads the REST API base URL at startup. It is overrideable without recompiling:
+
+| Source | Key | Default |
+|---|---|---|
+| System property | `energy.api.base-url` | `http://localhost:8080` |
+| Environment variable | `ENERGY_API_BASE_URL` | `http://localhost:8080` |
+
+The system property takes precedence over the environment variable. Example:
+
+```powershell
+cd energy-gui
+..\energy-producer\mvnw.cmd -f pom.xml javafx:run "-Denergy.api.base-url=http://localhost:9090"
+```
+
+## Startup Without REST
+
+The GUI is independently startable even when the REST API is unavailable. The window opens
+first, then the initial `/energy/current` call runs asynchronously. If the REST API is down,
+the request fails the connect timeout and the labels show `Error fetching data` instead of
+crashing. The same applies to the refresh and show-data actions, so the GUI degrades gracefully.
+
 ## UI Behavior
 
 Current data:
@@ -99,7 +122,8 @@ sequenceDiagram
 
 ## Start Command
 
-The REST API must be running first.
+The GUI starts independently. The REST API should be running for live data; if it is not, the
+GUI still opens and shows `Error fetching data` (see *Startup Without REST*).
 
 ```powershell
 cd energy-gui
