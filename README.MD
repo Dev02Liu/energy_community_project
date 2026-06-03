@@ -102,6 +102,23 @@ Ports and credentials:
 | RabbitMQ AMQP | `localhost:5672` | user `guest`, password `guest` |
 | RabbitMQ Management UI | `http://localhost:15672` | user `guest`, password `guest` |
 
+## Configuration and Overrides
+
+Each component owns its configuration. The Spring Boot services read `src/main/resources/application.properties`; the GUI reads its base URL at startup. Per-module configuration tables are documented under [docs/modules-documentation/](docs/modules-documentation/).
+
+Only `rest-api` binds an HTTP port (`8080`). The four RabbitMQ worker services (`energy-producer`, `energy-user`, `usage-service`, `percentage-service`) start no servlet container, so there is no port conflict when they run together.
+
+All values are overrideable without editing files:
+
+| Component(s) | Example override |
+|---|---|
+| Any Spring service | `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.port=8090 --spring.datasource.url=jdbc:postgresql://db:5432/energy_community"` |
+| Any Spring service (env var) | `$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://db:5432/energy_community"` before starting |
+| Energy Producer weather | `--app.weather.mode=fallback` |
+| JavaFX GUI base URL | `-Denergy.api.base-url=http://host:8080` or `$env:ENERGY_API_BASE_URL` |
+
+Key overrideable properties: `spring.datasource.url` / `username` / `password`, `spring.rabbitmq.host` / `port`, `app.queue.name`, `app.update-queue.name`, `server.port` (rest-api), and `app.weather.*` (producer).
+
 ## Build Commands
 
 Run from a clean PowerShell terminal:
@@ -354,7 +371,11 @@ The GUI:
 - shows API errors in the UI,
 - displays historical values as aggregate labels for the selected range.
 
-The REST API must be running on `http://localhost:8080` before starting the GUI.
+The GUI is independently startable: if the REST API is unavailable it still opens and shows
+`Error fetching data` in the labels instead of crashing. Start the REST API to see live data.
+
+The REST base URL defaults to `http://localhost:8080` and is overrideable without recompiling
+via the `energy.api.base-url` system property or the `ENERGY_API_BASE_URL` environment variable.
 
 ## Final Demo Flow
 
@@ -400,6 +421,7 @@ For the full repeatable manual smoke test, use [docs/smoke-test.md](docs/smoke-t
 - [docs/message-contract.md](docs/message-contract.md): RabbitMQ topology and JSON contracts.
 - [docs/database-schema.md](docs/database-schema.md): implemented DB schema and conceptual mapping.
 - [docs/how-to-run.md](docs/how-to-run.md): detailed runbook.
+- [docs/independent-startup-verification.md](docs/independent-startup-verification.md): independent startup and port/config isolation verification.
 - [docs/smoke-test.md](docs/smoke-test.md): full distributed smoke-test runbook for RabbitMQ, PostgreSQL, REST, and JavaFX verification.
 - [docs/final-readiness-check.md](docs/final-readiness-check.md): final pre-submission checklist.
 - [docs/spec-code-mapping.md](docs/spec-code-mapping.md): specification-to-code mapping.
