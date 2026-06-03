@@ -17,6 +17,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+/**
+ * Thin async HTTP client for the REST API — the GUI's only backend dependency (no DB/JPA/RabbitMQ).
+ * Returns {@link CompletableFuture}s so the JavaFX UI thread is never blocked, and maps non-2xx
+ * responses to {@link EnergyApiException}.
+ */
 public class EnergyApiClient {
 
     private final String baseUrl;
@@ -56,6 +61,7 @@ public class EnergyApiClient {
                 .build();
     }
 
+    /** Sends the request asynchronously, enforces a 2xx status, then maps the JSON body to the target type. */
     private <T> CompletableFuture<T> send(HttpRequest request, ResponseMapper<T> mapper) {
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {

@@ -9,5 +9,6 @@ import java.util.List;
 
 @Repository
 public interface HourlyUsageRepository extends JpaRepository<HourlyUsageEntity, LocalDateTime> {
+    /** Returns hourly rows whose hour falls within [start, end] inclusive, for the historical endpoint. */
     List<HourlyUsageEntity> findByHourBetween(LocalDateTime start, LocalDateTime end);
 }

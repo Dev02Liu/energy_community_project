@@ -46,7 +46,7 @@ This section maps the lecturer's grading-risk comments to the current implementa
 |---|---|---|
 | Six components must be separate projects | `energy-producer`, `energy-user`, `usage-service`, `percentage-service`, `rest-api`, and `energy-gui` each have their own `pom.xml` and entry point. | Met |
 | Independent startup is a possible 0-point risk | README lists one start command per component and the required startup order. | Met |
-| Each team member needs own commits | README documents `git shortlog -sn` as a final check and lists observed local authors. Real-name mapping should be verified before submission. | Manual check |
+| Each team member needs own commits | Verified via `git shortlog -sn` (documented in `docs/final-regression-checklist.md` and `docs/final-readiness-check.md`); members are named in the submission text. | Manual check |
 | Usage/Percentage calculations are major grading risk | Focused tests cover hourly bucketing, grid fallback, invariant, user-before-producer ordering, division by zero, and percentage rounding. | Met |
 | Messages are aggregated hourly | Usage Service truncates minute/second/nano to the hour; tests cover `14:34 -> 14:00`. | Met |
 | Producer uses weather; User uses time of day | Producer has Open-Meteo plus fallback weather; User has time-of-day calculator and tests. | Met |

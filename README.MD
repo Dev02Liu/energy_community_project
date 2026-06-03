@@ -424,4 +424,5 @@ For the full repeatable manual smoke test, use [docs/smoke-test.md](docs/smoke-t
 - [docs/independent-startup-verification.md](docs/independent-startup-verification.md): independent startup and port/config isolation verification.
 - [docs/smoke-test.md](docs/smoke-test.md): full distributed smoke-test runbook for RabbitMQ, PostgreSQL, REST, and JavaFX verification.
 - [docs/final-readiness-check.md](docs/final-readiness-check.md): final pre-submission checklist.
+- [docs/final-regression-checklist.md](docs/final-regression-checklist.md): grading-traceable hand-in checklist (one section per grading category).
 - [docs/spec-code-mapping.md](docs/spec-code-mapping.md): specification-to-code mapping.

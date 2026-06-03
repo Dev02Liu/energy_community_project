@@ -16,6 +16,10 @@ import com.energy_community_project.rest_api.entity.HourlyUsageEntity;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
+/**
+ * Read-only REST boundary (REST API, 10%). Serves DB-backed energy data to the GUI from
+ * {@code current_percentage} and {@code hourly_usage}; it performs no business calculation and no writes.
+ */
 @RestController
 @RequestMapping("/energy")
 public class EnergyController {
@@ -34,7 +38,7 @@ public class EnergyController {
         this.clock = clock;
     }
 
-    // Endpunkt für die aktuelle Stunde
+    // Current-hour percentages; returns zeros when no row exists yet (e.g. fresh DB).
     @GetMapping("/current")
     public CurrentPercentageDTO getCurrentPercentage() {
         LocalDateTime currentHour = LocalDateTime.now(clock).withMinute(0).withSecond(0).withNano(0);
@@ -45,7 +49,7 @@ public class EnergyController {
         return new CurrentPercentageDTO(current.getHour().toString(), current.getCommunityDepleted(), current.getGridPortion());
     }
 
-    // Endpunkt für historische Daten mit Zeitfilter
+    // Historical hourly usage within a [start, end] range (inclusive), for the GUI date-range view.
     @GetMapping("/historical")
     public List<HistoricalUsageDTO> getHistoricalData(
             @RequestParam String start,
@@ -66,6 +70,7 @@ public class EnergyController {
         )).collect(Collectors.toList());
     }
 
+    /** Accepts ISO local datetime or the GUI's {@code dd.MM.yyyy HH:mm} format; 400 on anything else. */
     private LocalDateTime parseDateTime(String value, String fieldName) {
         try {
             return LocalDateTime.parse(value);
