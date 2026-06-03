@@ -120,7 +120,8 @@ SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;
 
 - [ ] GitHub repository link is submitted.
 - [ ] `git shortlog -sn` shows commits for every team member.
-- [ ] README Team Contributions table maps Git authors to real team members.
+- [ ] Every team member is named in the Moodle submission text (the project intentionally keeps no
+      contributors table in the README; Git history is the source of truth for commit authorship).
 - [ ] Generated `target/` artifacts are not tracked in Git.
 
 ## Presentation Readiness
@@ -191,3 +192,31 @@ C:\dev\energy_community_project\.agent-local\smoke-20260516-114338\smoke-result.
 ```
 
 Result: backend/message/database/REST smoke test passed. JavaFX was not opened as a visible desktop window during this automated smoke test; GUI build and automated tests were verified separately.
+
+## Clean QA Evidence - 2026-06-03
+
+Full regression executed from a clean Docker volume (`docker compose down -v && up -d`) and a clean
+Java process list, after a clean `clean package` of all six modules.
+
+Build:
+
+- All six modules built independently: `BUILD SUCCESS` (tests included; no live infra needed).
+
+Runtime (all five backend services started from packaged JARs; producer in fallback weather mode):
+
+- Each service logged `Started <Name>Application` — independent startup confirmed.
+- Producer published sensible weather-based kWh (e.g. `0.00438`–`0.00527`, within `0.001`–`0.006`);
+  consecutive sends ~1–5 s apart.
+- User published sensible time-of-day-based kWh (e.g. `0.00161`–`0.00277`).
+- RabbitMQ `energy_queue` and `percentage_update_queue` each had `1` consumer and `0` ready messages
+  (draining normally).
+- `hourly_usage` updated; invariant `community_used <= community_produced` held (0 violations).
+- `current_percentage` matched the recomputed formula exactly (stored `41.45` == recomputed `41.45`,
+  grid `0` == `0.00`).
+- `GET /energy/current` returned DB-backed JSON matching `current_percentage`
+  (`{"hour":"2026-06-03T12:00","communityDepleted":41.45,"gridPortion":0.0}`).
+- `GET /energy/historical` returned the hourly row; invalid dates returned `400`.
+
+Result: all final-grading KO criteria and per-component functional requirements verified. Grid
+portion was `0` in this short window because community production covered demand; the grid-fallback
+path and message-ordering cases are covered by unit tests in `usage-service`.

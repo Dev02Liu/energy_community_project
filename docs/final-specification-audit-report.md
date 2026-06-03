@@ -5,6 +5,11 @@ Repository: `C:\dev\energy_community_project`
 Branch observed: `audit-latest-version`  
 Audit mode: implementation update plus verification.
 
+> **Update 2026-06-03:** This is a point-in-time record. Action items below that refer to a "README
+> Team Contributions" table are obsolete — that table was intentionally removed afterwards. Team
+> commit evidence is now verified via `git shortlog -sn` (see
+> `docs/final-regression-checklist.md`), and team members are named in the Moodle submission text.
+
 ## 1. Executive Summary
 
 Overall status: **MOSTLY READY**

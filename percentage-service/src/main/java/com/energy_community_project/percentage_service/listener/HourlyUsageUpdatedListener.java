@@ -5,6 +5,7 @@ import com.energy_community_project.percentage_service.service.CurrentPercentage
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+/** RabbitMQ inbound boundary: receives usage-update events from {@code percentage_update_queue} and triggers recalculation. */
 @Component
 public class HourlyUsageUpdatedListener {
 

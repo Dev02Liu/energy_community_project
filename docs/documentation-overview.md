@@ -51,6 +51,8 @@ flowchart LR
 | `docs/how-to-run.md` | Detailed startup and troubleshooting instructions. |
 | `docs/smoke-test.md` | Repeatable distributed smoke-test runbook. |
 | `docs/final-readiness-check.md` | Final pre-submission checklist and last smoke evidence. |
+| `docs/final-regression-checklist.md` | Grading-traceable hand-in checklist: one section per grading category, copyable commands. |
+| `docs/independent-startup-verification.md` | Independent startup and port/config isolation verification. |
 | `docs/spec-code-mapping.md` | Mapping between specification/grading risks and implementation. |
 | `docs/project-status.md` | Current readiness state and remaining manual checks. |
 | `docs/final-specification-audit-report.md` | Detailed specification audit and presentation-readiness baseline. |
@@ -64,4 +66,5 @@ For a reviewer or team member preparing for the final presentation:
 3. Read `docs/architecture.md`, `docs/message-contract.md`, and `docs/database-schema.md`.
 4. Read the module document for the component you need to explain.
 5. Execute `docs/smoke-test.md`.
-6. Use `docs/final-readiness-check.md` as the final sign-off checklist.
+6. Use `docs/final-regression-checklist.md` to verify every grading item, then
+   `docs/final-readiness-check.md` as the final sign-off checklist.

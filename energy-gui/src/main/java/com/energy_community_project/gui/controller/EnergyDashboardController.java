@@ -19,6 +19,13 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.List;
 
+/**
+ * Wires the JavaFX dashboard to the REST client (JavaFX UI, 10%).
+ *
+ * <p>Builds the controls, triggers asynchronous REST calls on button actions, validates the date
+ * range locally, and renders results — or a graceful error message — back onto the labels via the
+ * JavaFX application thread.
+ */
 public class EnergyDashboardController {
 
     private static final String ERROR_MESSAGE = "Error fetching data";
@@ -41,6 +48,7 @@ public class EnergyDashboardController {
         this.formatter = new EnergyValueFormatter();
     }
 
+    /** Builds the dashboard layout: current-percentage labels + refresh, date-range inputs + show-data, kWh labels. */
     public Parent createView() {
         communityPoolLabel = new Label("Community Pool: -% used");
         gridPortionLabel = new Label("Grid Portion: -%");
@@ -81,6 +89,7 @@ public class EnergyDashboardController {
         return root;
     }
 
+    /** Refresh action: fetch current percentages asynchronously; on failure show an inline error (no crash). */
     public void loadCurrentPercentages() {
         apiClient.fetchCurrentPercentage()
                 .thenAccept(dto -> Platform.runLater(() -> showCurrentPercentage(dto)))
@@ -91,9 +100,11 @@ public class EnergyDashboardController {
                 });
     }
 
+    /** Show-data action: validate the range locally, then fetch and aggregate historical usage. */
     private void loadHistoricalUsage() {
         String startText = startField.getText();
         String endText = endField.getText();
+        // Local validation before hitting the API: parseable dates and start <= end.
         LocalDateTime start = parseGuiDate(startText);
         LocalDateTime end = parseGuiDate(endText);
         if (start == null || end == null) {
@@ -113,6 +124,7 @@ public class EnergyDashboardController {
                 });
     }
 
+    /** Parses the GUI {@code dd.MM.yyyy HH:mm} format, falling back to ISO local datetime; null if neither matches. */
     static LocalDateTime parseGuiDate(String value) {
         if (value == null || value.isBlank()) return null;
         try {
@@ -131,6 +143,7 @@ public class EnergyDashboardController {
         gridPortionLabel.setText("Grid Portion: " + formatter.formatPercent(dto.getGridPortion()) + "%");
     }
 
+    /** Aggregates the returned hourly rows into produced/used/grid totals for the selected range. */
     private void showHistoricalUsage(List<HistoricalUsageDTO> entries) {
         if (entries == null || entries.isEmpty()) {
             showHistoricalError(ERROR_MESSAGE);

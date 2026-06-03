@@ -1,5 +1,6 @@
 package com.energy_community_project.rest_api;
 
+/** Response payload for {@code GET /energy/historical}: one aggregated hourly-usage row. */
 public class HistoricalUsageDTO {
     private String hour;
     private double communityProduced;
@@ -13,9 +14,7 @@ public class HistoricalUsageDTO {
         this.gridUsed = gridUsed;
     }
 
-    // --- GETTER ---
-    // Diese sind extrem wichtig, damit Spring Boot die Daten als JSON ausgeben kann!
-
+    // Getters (required so Spring Boot can serialize the fields to JSON).
     public String getHour() {
         return hour;
     }

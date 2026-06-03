@@ -18,12 +18,17 @@ public class EnergyUserScheduler {
         this.simulationDelayProvider = simulationDelayProvider;
     }
 
+    /**
+     * Drives message publishing at random ~1–5 s intervals: a 1 s fixed delay after the previous run
+     * plus a random extra wait (0–4 s) before each send. Disabled in tests via {@code app.scheduling.enabled}.
+     */
     @Scheduled(fixedDelayString = "${app.scheduling.fixed-delay-ms:1000}")
     public void sendUsageData() {
         try {
             simulationDelayProvider.waitBeforeNextEvent();
             energyUserService.publishUsageData();
         } catch (InterruptedException e) {
+            // Restore the interrupt flag so the scheduler can shut down cleanly.
             Thread.currentThread().interrupt();
         }
     }

@@ -1,5 +1,6 @@
 package com.energy_community_project.rest_api;
 
+/** Response payload for {@code GET /energy/current}: current-hour percentages. */
 public class CurrentPercentageDTO {
     private String hour;
     private double communityDepleted;
@@ -11,7 +12,7 @@ public class CurrentPercentageDTO {
         this.gridPortion = gridPortion;
     }
 
-    // Getter und Setter (wichtig für JSON-Serialisierung)
+    // Getters (required for JSON serialization).
     public String getHour() { return hour; }
     public double getCommunityDepleted() { return communityDepleted; }
     public double getGridPortion() { return gridPortion; }

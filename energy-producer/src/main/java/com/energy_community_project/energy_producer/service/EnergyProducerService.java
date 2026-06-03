@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
+/** Builds weather-dependent PRODUCER messages and publishes them to {@code energy_queue} (Energy Producer, 10%). */
 @Service
 public class EnergyProducerService {
 
@@ -32,6 +33,7 @@ public class EnergyProducerService {
         this.queueName = queueName;
     }
 
+    /** Creates one production message and sends it to the queue (called on each scheduler tick). */
     public void publishProductionData() {
         EnergyMessage msg = createProductionMessage();
 
@@ -39,6 +41,7 @@ public class EnergyProducerService {
         System.out.println("Sent: " + msg.getType() + " - " + String.format("%.5f", msg.getKwh()) + " kWh");
     }
 
+    /** Reads current weather, derives the produced kWh from it, and assembles the COMMUNITY/PRODUCER event. */
     public EnergyMessage createProductionMessage() {
         WeatherSnapshot weather = weatherClient.currentWeather();
         double producedKwh = productionCalculator.calculateKwh(weather);

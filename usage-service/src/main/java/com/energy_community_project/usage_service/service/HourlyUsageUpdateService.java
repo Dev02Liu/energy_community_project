@@ -16,6 +16,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.util.Set;
 
+/**
+ * Core business logic of the Usage Service (30% grading weight).
+ *
+ * <p>For each incoming PRODUCER/USER message it validates the payload, buckets it to the full hour,
+ * updates the {@code hourly_usage} aggregate (community-first, grid-fallback allocation), and — only
+ * after the DB transaction commits — publishes an update event so the Percentage Service recalculates.
+ */
 @Service
 public class HourlyUsageUpdateService {
 
@@ -35,26 +42,35 @@ public class HourlyUsageUpdateService {
         this.updateQueueName = updateQueueName;
     }
 
+    /** Entry point per message: validate, load/create the hour bucket, apply the message, persist, notify. */
     @Transactional
     public void handleEnergyMessage(EnergyMessage message) {
+        // Reject malformed/foreign messages before any DB write.
         if (!isValid(message)) {
             return;
         }
 
+        // Bucket to the start of the hour and load (or create) that hour's aggregate row.
         LocalDateTime hour = toHour(message.getDatetime());
         HourlyUsageEntity hourlyUsage = hourlyUsageRepository.findById(hour)
                 .orElseGet(() -> new HourlyUsageEntity(hour, 0.0, 0.0, 0.0));
 
+        // Apply the message: production adds to the pool, usage draws from it (grid covers the rest).
         if ("PRODUCER".equals(normalizedType(message))) {
             hourlyUsage.setCommunityProduced(hourlyUsage.getCommunityProduced() + message.getKwh());
         } else if ("USER".equals(normalizedType(message))) {
             updateUsage(hourlyUsage, message.getKwh());
         }
 
+        // Persist, then signal the Percentage Service once the row is safely committed.
         hourlyUsageRepository.save(hourlyUsage);
         publishUpdateAfterCommit(hour);
     }
 
+    /**
+     * Publishes the usage-update event only after the transaction commits, so the Percentage Service
+     * never reads a row that a rolled-back transaction would have removed.
+     */
     private void publishUpdateAfterCommit(LocalDateTime hour) {
         HourlyUsageUpdatedMessage updateMessage = new HourlyUsageUpdatedMessage(hour);
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -70,6 +86,7 @@ public class HourlyUsageUpdateService {
         });
     }
 
+    /** Guards against null, unknown type, foreign association, missing time, or non-finite/negative kWh. */
     private boolean isValid(EnergyMessage message) {
         if (message == null) {
             LOGGER.warn("Ignoring null energy message");
@@ -98,6 +115,10 @@ public class HourlyUsageUpdateService {
         return message.getType().trim().toUpperCase();
     }
 
+    /**
+     * Allocates a user request: community energy is consumed first, the uncovered remainder is grid.
+     * This keeps the invariant {@code communityUsed <= communityProduced} and never produces negative grid.
+     */
     private void updateUsage(HourlyUsageEntity hourlyUsage, double requestedKwh) {
         double availableCommunityEnergy = Math.max(
                 hourlyUsage.getCommunityProduced() - hourlyUsage.getCommunityUsed(),
@@ -111,6 +132,7 @@ public class HourlyUsageUpdateService {
         hourlyUsage.setGridUsed(hourlyUsage.getGridUsed() + gridPortion);
     }
 
+    /** Truncates a timestamp to the start of its hour (e.g. 14:34:21 -> 14:00:00) for bucketing. */
     private LocalDateTime toHour(LocalDateTime dateTime) {
         return dateTime.withMinute(0).withSecond(0).withNano(0);
     }

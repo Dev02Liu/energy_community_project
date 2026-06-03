@@ -5,6 +5,7 @@ import com.energy_community_project.usage_service.service.HourlyUsageUpdateServi
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+/** RabbitMQ inbound boundary: receives PRODUCER/USER messages from {@code energy_queue} and delegates to the service. */
 @Component
 public class EnergyMessageListener {
 

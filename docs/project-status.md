@@ -42,7 +42,7 @@ JavaFX GUI -> REST API only
 |---|---|
 | Six separate applications | Covered by module structure and README component table. |
 | Independent startup as 0-point risk | Covered by README start commands and `docs/final-readiness-check.md`. |
-| Own commits per person | README documents `git shortlog -sn`; real-name mapping remains a final manual check. |
+| Own commits per person | Verified via `git shortlog -sn` (the final checklists document this check); naming members is done in the submission text, not a README table. |
 | Correct Usage/Percentage calculations | Covered by focused unit tests and hardened validation. |
 | Hourly aggregation | Implemented and tested. |
 | Weather-dependent Producer | Implemented with Open-Meteo and fallback. |

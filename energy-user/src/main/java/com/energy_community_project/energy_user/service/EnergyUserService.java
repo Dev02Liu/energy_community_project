@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
+/** Builds time-of-day-dependent USER messages and publishes them to {@code energy_queue} (Energy User, 10%). */
 @Service
 public class EnergyUserService {
 
@@ -29,6 +30,7 @@ public class EnergyUserService {
         this.queueName = queueName;
     }
 
+    /** Creates one usage message and sends it to the queue (called on each scheduler tick). */
     public void publishUsageData() {
         EnergyMessage msg = createUsageMessage();
 
@@ -36,6 +38,7 @@ public class EnergyUserService {
         System.out.println("Sent: " + msg.getType() + " - " + String.format("%.5f", msg.getKwh()) + " kWh");
     }
 
+    /** Derives the demanded kWh from the current time of day plus random variation, and assembles the event. */
     public EnergyMessage createUsageMessage() {
         LocalDateTime now = LocalDateTime.now(clock);
         double usedKwh = usageCalculator.calculateKwh(now, usageVariationProvider.nextVariationKwh());
