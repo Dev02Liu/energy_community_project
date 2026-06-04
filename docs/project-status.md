@@ -1,6 +1,6 @@
 # Project Status
 
-Checked on 2026-05-16 on branch `44-issue-81---readiness-fixes`.
+Checked on 2026-06-04 on branch `53-issue-16---code-vereinfachen-und-bereinigen`.
 
 ## Overall State
 

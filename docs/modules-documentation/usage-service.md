@@ -16,21 +16,19 @@ It consumes producer/user messages from RabbitMQ, aggregates them into hourly us
 | Persistence | Spring Data JPA, Hibernate |
 | Database | PostgreSQL at runtime, H2 in tests |
 | Migration | Flyway |
-| Transactions | Spring `@Transactional` |
 | Tests | JUnit 5, Mockito, AssertJ, Spring Data JPA tests |
 
 ## Main Components
 
 | Class / Package | Responsibility |
 |---|---|
-| `UsageServiceApplication` | Spring Boot entry point. |
-| `config/RabbitMqConfig` | Declares durable queues and AMQP JSON converter. |
+| `UsageServiceApplication` | Spring Boot entry point. Declares the durable queues and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
 | `listener/EnergyMessageListener` | RabbitMQ boundary. Receives `EnergyMessage` from `energy_queue` and delegates to service logic. |
 | `messaging/EnergyMessage` | Service-local DTO consumed from Producer/User JSON. |
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO published after usage changes. |
 | `entity/HourlyUsageEntity` | JPA entity for table `hourly_usage`. |
 | `repository/HourlyUsageRepository` | Data access for hourly usage rows. |
-| `service/HourlyUsageUpdateService` | Validates messages, applies business calculation, writes DB, publishes update event. |
+| `service/HourlyUsageUpdateService` | Applies the business calculation, writes the DB, publishes the update event. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for required tables. |
 
 ## Configuration
@@ -116,10 +114,10 @@ sequenceDiagram
 
     Q->>L: EnergyMessage JSON
     L->>S: handleEnergyMessage(message)
-    S->>S: validate and truncate datetime to hour
+    S->>S: truncate datetime to hour
     S->>DB: find or create hourly row
     S->>DB: save updated usage values
-    DB-->>S: commit transaction
+    DB-->>S: row saved (committed)
     S->>UQ: publish HourlyUsageUpdatedMessage(hour)
 ```
 

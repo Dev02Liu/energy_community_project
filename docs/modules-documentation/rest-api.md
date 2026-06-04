@@ -24,7 +24,7 @@ It reads DB-backed data from PostgreSQL and does not calculate or write the core
 | Class / Package | Responsibility |
 |---|---|
 | `RestApiApplication` | Spring Boot entry point. |
-| `EnergyController` | Exposes `/energy/current` and `/energy/historical`. Parses and validates date parameters. |
+| `EnergyController` | Exposes `/energy/current` and `/energy/historical`. The `start`/`end` query parameters are bound directly to `LocalDateTime` (Spring parses them). |
 | `CurrentPercentageDTO` | Response DTO for current percentage data. |
 | `HistoricalUsageDTO` | Response DTO for historical hourly usage data. |
 | `entity/CurrentPercentageEntity` | Read model for table `current_percentage`. |
@@ -92,7 +92,7 @@ sequenceDiagram
     API-->>GUI: CurrentPercentageDTO
 
     GUI->>API: GET /energy/historical?start=...&end=...
-    API->>API: parse and validate range
+    API->>API: Spring binds start/end to LocalDateTime
     API->>HU: find rows between start/end
     HU-->>API: hourly usage rows
     API-->>GUI: HistoricalUsageDTO[]
