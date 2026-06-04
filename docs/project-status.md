@@ -32,7 +32,7 @@ JavaFX GUI -> REST API only
 | JavaFX GUI | Implemented | REST-only GUI, no DB dependency. |
 | RabbitMQ flow | Implemented | Direct durable queues documented in `docs/message-contract.md`. |
 | PostgreSQL/Flyway/JPA | Implemented | Flyway migrations and JPA schema validation in DB-backed modules. |
-| Usage calculation | Implemented and hardened | Invalid messages are rejected before DB writes or update events. |
+| Usage calculation | Implemented | Community pool is used first; only the uncovered part is taken from the grid. |
 | Percentage calculation | Implemented and rounded | Persisted values are rounded to two decimals. |
 | Documentation | Updated | README, module docs, runbook, message contracts, DB schema, final checklist. |
 
@@ -43,9 +43,9 @@ JavaFX GUI -> REST API only
 | Six separate applications | Covered by module structure and README component table. |
 | Independent startup as 0-point risk | Covered by README start commands and `docs/final-readiness-check.md`. |
 | Own commits per person | Verified via `git shortlog -sn` (the final checklists document this check); naming members is done in the submission text, not a README table. |
-| Correct Usage/Percentage calculations | Covered by focused unit tests and hardened validation. |
+| Correct Usage/Percentage calculations | Covered by focused unit tests and an end-to-end check against the spec example. |
 | Hourly aggregation | Implemented and tested. |
-| Weather-dependent Producer | Implemented with Open-Meteo and fallback. |
+| Weather-dependent Producer | Implemented with Open-Meteo solar radiation. |
 | Time-of-day-dependent User | Implemented and tested. |
 | Usage Service central flow | Consumes producer/user messages, writes DB, publishes update. |
 | Percentage after update message | Consumes `percentage_update_queue`; no direct service call. |

@@ -18,14 +18,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Contract tests for the REST API using real H2 fixture rows.
- * Each test inserts its own data via repositories; @Transactional rolls
- * everything back afterward so tests are fully isolated.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @Transactional
 class EnergyEndpointContractTest {
+
+    private static final LocalDateTime HISTORICAL_HOUR = LocalDateTime.of(2025, 1, 10, 14, 0);
+    private static final LocalDateTime PERCENTAGE_HOUR = LocalDateTime.of(2025, 1, 10, 15, 0);
 
     @Autowired
     private WebApplicationContext wac;
@@ -37,12 +35,6 @@ class EnergyEndpointContractTest {
     private CurrentPercentageRepository currentPercentageRepository;
 
     private MockMvc mvc;
-
-    private static final LocalDateTime HOUR = LocalDateTime.now()
-            .withMinute(0)
-            .withSecond(0)
-            .withNano(0);
-    private static final LocalDateTime HISTORICAL_HOUR = LocalDateTime.of(2025, 1, 10, 14, 0);
 
     @BeforeEach
     void setUp() {
@@ -56,7 +48,7 @@ class EnergyEndpointContractTest {
         hourlyUsageRepository.save(usage);
 
         CurrentPercentageEntity percentage = new CurrentPercentageEntity();
-        percentage.setHour(HOUR);
+        percentage.setHour(PERCENTAGE_HOUR);
         percentage.setCommunityDepleted(100.0);
         percentage.setGridPortion(5.63);
         currentPercentageRepository.save(percentage);
@@ -65,13 +57,17 @@ class EnergyEndpointContractTest {
         currentPercentageRepository.flush();
     }
 
-    // --- GET /energy/current ---
-
     @Test
-    void getCurrent_returnsCurrentHourRowFromDatabase() throws Exception {
+    void getCurrent_returnsLatestPercentageRowFromDatabase() throws Exception {
+        CurrentPercentageEntity oldPercentage = new CurrentPercentageEntity();
+        oldPercentage.setHour(PERCENTAGE_HOUR.minusHours(1));
+        oldPercentage.setCommunityDepleted(75.0);
+        oldPercentage.setGridPortion(12.0);
+        currentPercentageRepository.saveAndFlush(oldPercentage);
+
         mvc.perform(get("/energy/current"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.hour").value(HOUR.toString()))
+                .andExpect(jsonPath("$.hour").value(PERCENTAGE_HOUR.toString()))
                 .andExpect(jsonPath("$.communityDepleted").value(100.0))
                 .andExpect(jsonPath("$.gridPortion").value(5.63));
     }
@@ -84,22 +80,6 @@ class EnergyEndpointContractTest {
                 .andExpect(jsonPath("$.communityDepleted").exists())
                 .andExpect(jsonPath("$.gridPortion").exists());
     }
-
-    @Test
-    void getCurrent_whenPastRowAlsoExists_returnsCurrentHour() throws Exception {
-        CurrentPercentageEntity stale = new CurrentPercentageEntity();
-        stale.setHour(HOUR.minusHours(1));
-        stale.setCommunityDepleted(75.0);
-        stale.setGridPortion(12.0);
-        currentPercentageRepository.saveAndFlush(stale);
-
-        mvc.perform(get("/energy/current"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.hour").value(HOUR.toString()))
-                .andExpect(jsonPath("$.communityDepleted").value(100.0));
-    }
-
-    // --- GET /energy/historical with ISO format ---
 
     @Test
     void getHistorical_isoFormat_returnsMatchingRow() throws Exception {
@@ -135,31 +115,6 @@ class EnergyEndpointContractTest {
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
-    // --- GET /energy/historical with GUI format (dd.MM.yyyy HH:mm) ---
-
-    @Test
-    void getHistorical_germanFormat_returnsMatchingRow() throws Exception {
-        mvc.perform(get("/energy/historical")
-                        .param("start", "10.01.2025 00:00")
-                        .param("end", "10.01.2025 23:00"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].communityProduced").value(18.05))
-                .andExpect(jsonPath("$[0].communityUsed").value(18.05))
-                .andExpect(jsonPath("$[0].gridUsed").value(1.076));
-    }
-
-    @Test
-    void getHistorical_germanFormatWithExactHour_returnsRow() throws Exception {
-        mvc.perform(get("/energy/historical")
-                        .param("start", "10.01.2025 14:00")
-                        .param("end", "10.01.2025 14:00"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
-    }
-
-    // --- Invalid input → 400 ---
-
     @Test
     void getHistorical_invalidStartFormat_returns400() throws Exception {
         mvc.perform(get("/energy/historical")
@@ -173,14 +128,6 @@ class EnergyEndpointContractTest {
         mvc.perform(get("/energy/historical")
                         .param("start", "2025-01-10T00:00:00")
                         .param("end", "31.02.2025 99:99"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void getHistorical_startAfterEnd_returns400() throws Exception {
-        mvc.perform(get("/energy/historical")
-                        .param("start", "2025-01-10T23:00:00")
-                        .param("end", "2025-01-10T00:00:00"))
                 .andExpect(status().isBadRequest());
     }
 

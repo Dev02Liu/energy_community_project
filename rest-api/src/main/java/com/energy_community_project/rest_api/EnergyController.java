@@ -1,85 +1,46 @@
 package com.energy_community_project.rest_api;
 
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-
 import com.energy_community_project.rest_api.entity.CurrentPercentageEntity;
-import com.energy_community_project.rest_api.entity.HourlyUsageEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import java.time.LocalDateTime;
+import java.util.List;
 
-/**
- * Read-only REST boundary (REST API, 10%). Serves DB-backed energy data to the GUI from
- * {@code current_percentage} and {@code hourly_usage}; it performs no business calculation and no writes.
- */
 @RestController
 @RequestMapping("/energy")
 public class EnergyController {
 
-    private static final DateTimeFormatter GUI_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", Locale.GERMANY);
-
     private final CurrentPercentageRepository currentPercentageRepository;
     private final HourlyUsageRepository hourlyUsageRepository;
-    private final Clock clock;
 
     public EnergyController(CurrentPercentageRepository currentPercentageRepository,
-                            HourlyUsageRepository hourlyUsageRepository,
-                            Clock clock) {
+                            HourlyUsageRepository hourlyUsageRepository) {
         this.currentPercentageRepository = currentPercentageRepository;
         this.hourlyUsageRepository = hourlyUsageRepository;
-        this.clock = clock;
     }
 
-    // Current-hour percentages; returns zeros when no row exists yet (e.g. fresh DB).
     @GetMapping("/current")
     public CurrentPercentageDTO getCurrentPercentage() {
-        LocalDateTime currentHour = LocalDateTime.now(clock).withMinute(0).withSecond(0).withNano(0);
-        CurrentPercentageEntity current = currentPercentageRepository.findById(currentHour).orElse(null);
+        CurrentPercentageEntity current = currentPercentageRepository.findFirstByOrderByHourDesc().orElse(null);
         if (current == null) {
-            return new CurrentPercentageDTO(currentHour.toString(), 0.0, 0.0);
+            return new CurrentPercentageDTO(LocalDateTime.now().toString(), 0.0, 0.0);
         }
         return new CurrentPercentageDTO(current.getHour().toString(), current.getCommunityDepleted(), current.getGridPortion());
     }
 
-    // Historical hourly usage within a [start, end] range (inclusive), for the GUI date-range view.
     @GetMapping("/historical")
     public List<HistoricalUsageDTO> getHistoricalData(
-            @RequestParam String start,
-            @RequestParam String end) {
-        LocalDateTime startDateTime = parseDateTime(start, "start");
-        LocalDateTime endDateTime = parseDateTime(end, "end");
-
-        if (startDateTime.isAfter(endDateTime)) {
-            throw new ResponseStatusException(BAD_REQUEST, "start must be before or equal to end");
-        }
-
-        List<HourlyUsageEntity> entities = hourlyUsageRepository.findByHourBetween(startDateTime, endDateTime);
-        return entities.stream().map(e -> new HistoricalUsageDTO(
-                e.getHour().toString(),
-                e.getCommunityProduced(),
-                e.getCommunityUsed(),
-                e.getGridUsed()
-        )).collect(Collectors.toList());
-    }
-
-    /** Accepts ISO local datetime or the GUI's {@code dd.MM.yyyy HH:mm} format; 400 on anything else. */
-    private LocalDateTime parseDateTime(String value, String fieldName) {
-        try {
-            return LocalDateTime.parse(value);
-        } catch (DateTimeParseException ignored) {
-            try {
-                return LocalDateTime.parse(value, GUI_FORMATTER);
-            } catch (DateTimeParseException ex) {
-                throw new ResponseStatusException(BAD_REQUEST, "Invalid " + fieldName + " format. Use ISO or dd.MM.yyyy HH:mm");
-            }
-        }
+            @RequestParam LocalDateTime start,
+            @RequestParam LocalDateTime end) {
+        return hourlyUsageRepository.findByHourBetween(start, end).stream()
+                .map(entity -> new HistoricalUsageDTO(
+                        entity.getHour().toString(),
+                        entity.getCommunityProduced(),
+                        entity.getCommunityUsed(),
+                        entity.getGridUsed()))
+                .toList();
     }
 }

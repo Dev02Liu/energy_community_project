@@ -21,7 +21,7 @@ running via `docker compose up -d`.
 |---|---|
 | Starting one service does not require compiling or starting another service module | PASS |
 | No service imports implementation classes from another service module | PASS |
-| Configuration values are documented and overrideable | PASS |
+| Spring Boot configuration values are documented and overrideable | PASS |
 
 ## 1. Module isolation (build time)
 
@@ -66,9 +66,9 @@ no live infrastructure.
   all run simultaneously without a port conflict.
 - `energy-producer` and `energy-user` explicitly exclude `DataSourceAutoConfiguration` and
   `HibernateJpaAutoConfiguration`, so they do not require PostgreSQL at startup.
-- Per-module configuration is documented in [docs/modules-documentation/](modules-documentation/),
-  and override mechanisms (Spring Boot CLI args / env vars, and the GUI's `energy.api.base-url`
-  property / `ENERGY_API_BASE_URL` env var) are documented in the [README](../README.MD).
+- Per-module configuration is documented in [docs/modules-documentation/](modules-documentation/).
+  Spring Boot override mechanisms are documented in the [README](../README.MD). The GUI uses the
+  local review/demo REST URL `http://localhost:8080`.
 
 ## 4. Independent runtime startup (only infra running)
 
@@ -78,7 +78,7 @@ log line:
 
 | Service | Required infra | Result |
 |---|---|---|
-| energy-producer (`--app.weather.mode=fallback`) | RabbitMQ | Started EnergyProducerApplication |
+| energy-producer | RabbitMQ | Started EnergyProducerApplication |
 | energy-user | RabbitMQ | Started EnergyUserApplication |
 | usage-service | RabbitMQ + PostgreSQL | Started UsageServiceApplication |
 | percentage-service | RabbitMQ + PostgreSQL | Started PercentageServiceApplication |
@@ -103,9 +103,7 @@ GET http://localhost:8080/energy/current
 `Error fetching data` instead of crashing; refresh and show-data behave the same way. This is both
 implemented and documented (see [modules-documentation/energy-gui.md](modules-documentation/energy-gui.md)).
 
-The REST base URL is no longer hardcoded: it defaults to `http://localhost:8080` and is
-overrideable via the `energy.api.base-url` system property or the `ENERGY_API_BASE_URL`
-environment variable.
+The GUI uses the local review/demo REST URL `http://localhost:8080`.
 
 ## How to reproduce
 

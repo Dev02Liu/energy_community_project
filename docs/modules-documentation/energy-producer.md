@@ -14,8 +14,8 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 | Framework | Spring Boot 4.0.3 |
 | Messaging | Spring AMQP, `RabbitTemplate`, JSON converter |
 | Scheduling | Spring `@Scheduled` |
-| Weather data | Open-Meteo client with fallback mode |
-| HTTP client | Java HTTP client inside weather adapter |
+| Weather data | Open-Meteo current solar radiation |
+| HTTP client | Java built-in `HttpClient` inside `WeatherClient` |
 | Tests | JUnit 5, AssertJ, Mockito, Spring Boot test support |
 
 ## Main Components
@@ -24,16 +24,10 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 |---|---|
 | `EnergyProducerApplication` | Spring Boot entry point, scheduling enabled, AMQP JSON converter bean. |
 | `messaging/EnergyMessage` | Service-local DTO published to RabbitMQ. Fields: `type`, `association`, `kwh`, `datetime`. |
-| `scheduling/EnergyProducerScheduler` | Periodically triggers production publishing when `app.scheduling.enabled=true`. |
-| `scheduling/SimulationDelayProvider` | Abstraction for simulation delay. |
-| `scheduling/RandomSimulationDelayProvider` | Adds randomized delay before each published event. |
+| `scheduling/EnergyProducerScheduler` | Periodically waits a short random delay and triggers production publishing. |
 | `service/EnergyProducerService` | Creates producer messages and publishes them to `energy_queue`. |
-| `weather/WeatherClient` | Weather data abstraction. |
-| `weather/OpenMeteoWeatherClient` | Reads current weather from Open-Meteo. |
-| `weather/FallbackWeatherClient` | Local fallback weather source. |
-| `weather/ResilientWeatherClient` | Uses Open-Meteo and falls back when remote weather fails. |
-| `weather/WeatherProductionCalculator` | Converts weather snapshot into plausible kWh production with small bounded random variation. |
-| `weather/WeatherSnapshot` | Immutable weather input model for production calculation. |
+| `weather/WeatherClient` | Reads the current solar radiation (W/m²) from Open-Meteo. Returns `0` if the API cannot be reached, so the producer keeps running offline. |
+| `weather/WeatherProductionCalculator` | Converts solar radiation into a plausible kWh value: more sun means more energy, plus a small bounded random variation. |
 
 ## Configuration
 
@@ -43,10 +37,9 @@ File: `energy-producer/src/main/resources/application.properties`
 |---|---|
 | HTTP port | none; this module is a RabbitMQ publisher |
 | `app.queue.name` | `energy_queue` |
-| `app.scheduling.enabled` | Enables/disables scheduled message publishing. |
 | `app.scheduling.fixed-delay-ms` | `1000`; combined with a randomized `0-3999 ms` wait, events are published every `1-5` seconds. |
 | `app.production.min-kwh` / `max-kwh` | `0.001` / `0.006`; minute-scale production calculator bounds. |
-| `app.weather.mode` | `open-meteo` by default; can be overridden to `fallback`. |
+| `app.weather.latitude` / `longitude` | `48.2082` / `16.3738` (Vienna); location used for the Open-Meteo request. |
 | `spring.autoconfigure.exclude` | Excludes JDBC/JPA autoconfiguration because this module must not use the database. |
 
 ## Runtime Flow
@@ -55,7 +48,7 @@ File: `energy-producer/src/main/resources/application.properties`
 flowchart LR
     Scheduler["EnergyProducerScheduler<br/>@Scheduled"]
     Service["EnergyProducerService"]
-    Weather["WeatherClient<br/>Open-Meteo or fallback"]
+    Weather["WeatherClient<br/>Open-Meteo solar radiation"]
     Calculator["WeatherProductionCalculator"]
     DTO["EnergyMessage<br/>type=PRODUCER"]
     Rabbit["RabbitMQ<br/>energy_queue"]
@@ -89,12 +82,7 @@ cd energy-producer
 .\mvnw.cmd spring-boot:run
 ```
 
-Fallback weather mode:
-
-```powershell
-cd energy-producer
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
-```
+If the Open-Meteo API cannot be reached, `WeatherClient` returns `0` W/m² and the producer keeps publishing at the minimum kWh value, so no extra configuration is needed to run offline.
 
 ## Verification
 

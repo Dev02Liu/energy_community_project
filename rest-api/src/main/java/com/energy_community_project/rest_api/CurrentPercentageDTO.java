@@ -1,6 +1,6 @@
 package com.energy_community_project.rest_api;
 
-/** Response payload for {@code GET /energy/current}: current-hour percentages. */
+/** Response payload for {@code GET /energy/current}: latest calculated percentages. */
 public class CurrentPercentageDTO {
     private String hour;
     private double communityDepleted;

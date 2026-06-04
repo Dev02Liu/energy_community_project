@@ -2,9 +2,6 @@ package com.energy_community_project.rest_api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
-
-import java.time.Clock;
 
 @SpringBootApplication
 public class RestApiApplication {
@@ -12,8 +9,4 @@ public class RestApiApplication {
 		SpringApplication.run(RestApiApplication.class, args);
 	}
 
-	@Bean
-	public Clock clock() {
-		return Clock.systemDefaultZone();
-	}
 }

@@ -100,15 +100,9 @@ Invariant:
 communityUsed <= communityProduced
 ```
 
-## Validation
-
-Invalid messages are rejected before DB writes and before update events:
-
-- null message,
-- missing or unknown `type`,
-- missing or invalid `association`,
-- null `datetime`,
-- negative, `NaN`, or infinite `kwh`.
+A `PRODUCER` message increases `communityProduced`; every other message is treated as usage. Since the
+only senders are the Energy Producer and Energy User (which always send valid `COMMUNITY` messages),
+the service keeps the lecture style and does not add extra message validation.
 
 ## Sequence Diagram
 

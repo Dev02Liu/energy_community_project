@@ -12,8 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.time.Clock;
-import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,11 +19,12 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CurrentPercentageCalculationServiceTest {
+
+    private static final LocalDateTime HOUR = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
 
     @Mock
     private HourlyUsageRepository hourlyUsageRepository;
@@ -35,183 +34,86 @@ class CurrentPercentageCalculationServiceTest {
 
     private CurrentPercentageCalculationService service;
 
-    private static final LocalDateTime HOUR = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
-
     @BeforeEach
     void setUp() {
-        Clock clock = Clock.fixed(HOUR.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        service = new CurrentPercentageCalculationService(hourlyUsageRepository, currentPercentageRepository, clock);
+        service = new CurrentPercentageCalculationService(hourlyUsageRepository, currentPercentageRepository);
     }
-
-    private HourlyUsageEntity usage(double produced, double communityUsed, double gridUsed) {
-        HourlyUsageEntity e = new HourlyUsageEntity();
-        e.setHour(HOUR);
-        e.setCommunityProduced(produced);
-        e.setCommunityUsed(communityUsed);
-        e.setGridUsed(gridUsed);
-        return e;
-    }
-
-    // --- Spec example (Acceptance Criteria) ---
 
     @Test
     void specExample_produced18_05_used18_05_grid1_076() {
-        // communityDepleted = (18.05 / 18.05) * 100 = 100.0
-        // totalUsed = 18.05 + 1.076 = 19.126
-        // gridPortion = (1.076 / 19.126) * 100 ≈ 5.63
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(18.05, 18.05, 1.076)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.updateCurrentPercentage(HOUR);
 
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        CurrentPercentageEntity saved = captor.getValue();
+        CurrentPercentageEntity saved = savedPercentage();
         assertThat(saved.getCommunityDepleted()).isEqualTo(100.0);
         assertThat(saved.getGridPortion()).isEqualTo(5.63);
     }
 
-    // --- Normal case ---
-
     @Test
     void normalCase_partialDepletionAndPartialGrid() {
-        // communityDepleted = (15 / 20) * 100 = 75.0
-        // gridPortion = (5 / 20) * 100 = 25.0
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(20.0, 15.0, 5.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.updateCurrentPercentage(HOUR);
 
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isCloseTo(75.0, within(0.001));
-        assertThat(captor.getValue().getGridPortion()).isCloseTo(25.0, within(0.001));
+        CurrentPercentageEntity saved = savedPercentage();
+        assertThat(saved.getCommunityDepleted()).isCloseTo(75.0, within(0.001));
+        assertThat(saved.getGridPortion()).isCloseTo(25.0, within(0.001));
     }
-
-    // --- Full depletion ---
 
     @Test
     void fullDepletion_communityDepletedIs100_gridPortionIsZero() {
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(10.0, 10.0, 0.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.updateCurrentPercentage(HOUR);
 
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isCloseTo(100.0, within(0.001));
-        assertThat(captor.getValue().getGridPortion()).isEqualTo(0.0);
-    }
-
-    // --- Zero production ---
-
-    @Test
-    void zeroProduction_communityDepletedIsZero() {
-        when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(0.0, 0.0, 0.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-
-        service.updateCurrentPercentage(HOUR);
-
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isEqualTo(0.0);
-        assertThat(captor.getValue().getGridPortion()).isEqualTo(0.0);
+        CurrentPercentageEntity saved = savedPercentage();
+        assertThat(saved.getCommunityDepleted()).isCloseTo(100.0, within(0.001));
+        assertThat(saved.getGridPortion()).isEqualTo(0.0);
     }
 
     @Test
     void zeroProduction_allFromGrid_communityDepletedIsZero_gridPortionIs100() {
-        // No community production, user draws entirely from grid
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(0.0, 0.0, 5.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.updateCurrentPercentage(HOUR);
 
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isEqualTo(0.0);
-        assertThat(captor.getValue().getGridPortion()).isCloseTo(100.0, within(0.001));
+        CurrentPercentageEntity saved = savedPercentage();
+        assertThat(saved.getCommunityDepleted()).isEqualTo(0.0);
+        assertThat(saved.getGridPortion()).isCloseTo(100.0, within(0.001));
     }
-
-    // --- Zero total usage ---
 
     @Test
     void zeroTotalUsage_gridPortionIsZero() {
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(10.0, 0.0, 0.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.updateCurrentPercentage(HOUR);
 
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isEqualTo(0.0);
-        assertThat(captor.getValue().getGridPortion()).isEqualTo(0.0);
-    }
-
-    // --- Existing row is updated ---
-
-    @Test
-    void existingRowIsOverwrittenWithNewValues() {
-        CurrentPercentageEntity existing = new CurrentPercentageEntity(HOUR, 50.0, 10.0);
-        when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(20.0, 20.0, 0.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.of(existing));
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-
-        service.updateCurrentPercentage(HOUR);
-
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isCloseTo(100.0, within(0.001));
-        assertThat(captor.getValue().getGridPortion()).isEqualTo(0.0);
-        assertThat(captor.getValue().getHour()).isEqualTo(HOUR);
+        CurrentPercentageEntity saved = savedPercentage();
+        assertThat(saved.getCommunityDepleted()).isEqualTo(0.0);
+        assertThat(saved.getGridPortion()).isEqualTo(0.0);
     }
 
     @Test
-    void newRowIsCreatedWhenNoExistingPercentageRow() {
-        when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(10.0, 5.0, 2.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-
-        service.updateCurrentPercentage(HOUR);
-
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getHour()).isEqualTo(HOUR);
-        assertThat(captor.getValue().getCommunityDepleted()).isCloseTo(50.0, within(0.001));
-        assertThat(captor.getValue().getGridPortion()).isEqualTo(28.57);
-    }
-
-    @Test
-    void stalePercentageRowsAreRemovedBeforeCurrentHourIsSaved() {
+    void tableIsClearedBeforeCurrentValueIsSaved() {
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(10.0, 5.0, 0.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
 
         service.updateCurrentPercentage(HOUR);
 
-        verify(currentPercentageRepository).deleteAllByHourNot(HOUR);
+        verify(currentPercentageRepository).deleteAll();
         verify(currentPercentageRepository).save(any(CurrentPercentageEntity.class));
     }
 
     @Test
     void percentageValuesAreRoundedToTwoDecimals() {
         when(hourlyUsageRepository.findById(HOUR)).thenReturn(Optional.of(usage(3.0, 1.0, 2.0)));
-        when(currentPercentageRepository.findById(HOUR)).thenReturn(Optional.empty());
-        when(currentPercentageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.updateCurrentPercentage(HOUR);
 
-        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
-        verify(currentPercentageRepository).save(captor.capture());
-        assertThat(captor.getValue().getCommunityDepleted()).isEqualTo(33.33);
-        assertThat(captor.getValue().getGridPortion()).isEqualTo(66.67);
+        CurrentPercentageEntity saved = savedPercentage();
+        assertThat(saved.getCommunityDepleted()).isEqualTo(33.33);
+        assertThat(saved.getGridPortion()).isEqualTo(66.67);
     }
-
-    // --- Missing hourly_usage row ---
 
     @Test
     void missingHourlyUsageRow_nothingIsSaved() {
@@ -222,19 +124,28 @@ class CurrentPercentageCalculationServiceTest {
         verify(currentPercentageRepository, never()).save(any());
     }
 
-    // --- Null hour ---
-
     @Test
-    void nullHour_nothingHappens() {
-        service.updateCurrentPercentage(null);
+    void anyHourWithUsageCanBeCalculated() {
+        LocalDateTime pastHour = HOUR.minusHours(1);
+        when(hourlyUsageRepository.findById(pastHour)).thenReturn(Optional.of(usage(8.0, 4.0, 4.0)));
 
-        verifyNoInteractions(hourlyUsageRepository, currentPercentageRepository);
+        service.updateCurrentPercentage(pastHour);
+
+        assertThat(savedPercentage().getHour()).isEqualTo(pastHour);
     }
 
-    @Test
-    void pastHour_nothingHappens() {
-        service.updateCurrentPercentage(HOUR.minusHours(1));
+    private HourlyUsageEntity usage(double produced, double communityUsed, double gridUsed) {
+        HourlyUsageEntity usage = new HourlyUsageEntity();
+        usage.setHour(HOUR);
+        usage.setCommunityProduced(produced);
+        usage.setCommunityUsed(communityUsed);
+        usage.setGridUsed(gridUsed);
+        return usage;
+    }
 
-        verifyNoInteractions(hourlyUsageRepository, currentPercentageRepository);
+    private CurrentPercentageEntity savedPercentage() {
+        ArgumentCaptor<CurrentPercentageEntity> captor = ArgumentCaptor.forClass(CurrentPercentageEntity.class);
+        verify(currentPercentageRepository).save(captor.capture());
+        return captor.getValue();
     }
 }

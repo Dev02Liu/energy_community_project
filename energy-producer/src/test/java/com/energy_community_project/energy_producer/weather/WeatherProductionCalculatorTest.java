@@ -9,36 +9,25 @@ class WeatherProductionCalculatorTest {
     private final WeatherProductionCalculator calculator = new WeatherProductionCalculator(0.001, 0.006);
 
     @Test
-    void sunnyHighRadiationWeatherProducesMoreKwhThanCloudyWeather() {
-        WeatherSnapshot sunny = new WeatherSnapshot(5.0, true, 780.0);
-        WeatherSnapshot cloudy = new WeatherSnapshot(95.0, true, 80.0);
-
-        double sunnyKwh = calculator.calculateKwh(sunny);
-        double cloudyKwh = calculator.calculateKwh(cloudy);
+    void sunnyWeatherProducesMoreKwhThanCloudyWeather() {
+        double sunnyKwh = calculator.calculateKwh(780.0);
+        double cloudyKwh = calculator.calculateKwh(80.0);
 
         assertThat(sunnyKwh).isGreaterThan(cloudyKwh);
     }
 
     @Test
-    void nightWeatherProducesLowButNonNegativeKwh() {
-        WeatherSnapshot night = new WeatherSnapshot(80.0, false, 0.0);
-
-        double producedKwh = calculator.calculateKwh(night);
+    void nightProducesLowButNonNegativeKwh() {
+        double producedKwh = calculator.calculateKwh(0.0);
 
         assertThat(producedKwh).isBetween(0.001, 0.006);
     }
 
     @Test
-    void stableWeatherReceivesBoundedVariation() {
-        WeatherSnapshot stableWeather = new WeatherSnapshot(40.0, true, 400.0);
-        WeatherProductionCalculator lowerVariation = new WeatherProductionCalculator(0.001, 0.006, () -> -0.10);
-        WeatherProductionCalculator upperVariation = new WeatherProductionCalculator(0.001, 0.006, () -> 0.10);
-
-        double lowerKwh = lowerVariation.calculateKwh(stableWeather);
-        double upperKwh = upperVariation.calculateKwh(stableWeather);
-
-        assertThat(lowerKwh).isBetween(0.001, 0.006);
-        assertThat(upperKwh).isBetween(0.001, 0.006);
-        assertThat(upperKwh).isGreaterThan(lowerKwh);
+    void resultStaysWithinConfiguredBounds() {
+        for (int i = 0; i < 20; i++) {
+            double producedKwh = calculator.calculateKwh(400.0);
+            assertThat(producedKwh).isBetween(0.001, 0.006);
+        }
     }
 }

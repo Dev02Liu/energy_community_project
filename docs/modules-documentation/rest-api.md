@@ -29,7 +29,7 @@ It reads DB-backed data from PostgreSQL and does not calculate or write the core
 | `HistoricalUsageDTO` | Response DTO for historical hourly usage data. |
 | `entity/CurrentPercentageEntity` | Read model for table `current_percentage`. |
 | `entity/HourlyUsageEntity` | Read model for table `hourly_usage`. |
-| `CurrentPercentageRepository` | Reads the percentage row for the current hour. |
+| `CurrentPercentageRepository` | Reads the latest percentage row. |
 | `HourlyUsageRepository` | Reads hourly usage rows by time range. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for schema validation/recreation. |
 
@@ -42,21 +42,21 @@ File: `rest-api/src/main/resources/application.properties`
 | `server.port` | `8080` |
 | `spring.datasource.url` | `jdbc:postgresql://localhost:5432/energy_community` |
 | `spring.jpa.hibernate.ddl-auto` | `validate` |
-| `spring.jpa.show-sql` | `true` |
 
 ## Endpoints
 
 | Method | Path | Behavior |
 |---|---|---|
-| `GET` | `/energy/current` | Returns the current-hour row from `current_percentage`; returns zero values if no current-hour row exists. |
+| `GET` | `/energy/current` | Returns the latest row from `current_percentage`; returns zero values if no data exists. |
 | `GET` | `/energy/historical?start=...&end=...` | Returns rows from `hourly_usage` between `start` and `end`. |
 
 Accepted date formats for historical parameters:
 
-- ISO local datetime, for example `2026-05-16T00:00:00`,
-- GUI format, for example `16.05.2026 00:00`.
+- ISO local datetime, for example `2026-05-16T00:00:00`.
 
-Invalid date format or `start > end` returns `400 Bad Request`.
+`start` and `end` are bound directly to `LocalDateTime` parameters, so Spring parses them and returns
+`400 Bad Request` for an invalid date format. A reversed range (`start` after `end`) simply returns an
+empty list.
 
 ## Runtime Flow
 
@@ -87,8 +87,8 @@ sequenceDiagram
     participant HU as hourly_usage
 
     GUI->>API: GET /energy/current
-    API->>CP: find percentage row for current hour
-    CP-->>API: current row or none
+    API->>CP: find latest percentage row
+    CP-->>API: latest row or none
     API-->>GUI: CurrentPercentageDTO
 
     GUI->>API: GET /energy/historical?start=...&end=...

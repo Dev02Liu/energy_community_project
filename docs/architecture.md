@@ -19,7 +19,7 @@ flowchart TD
     User -->|"USER JSON message<br/>publish to energy_queue"| Rabbit
     Rabbit -->|"consume energy_queue<br/>PRODUCER or USER JSON message"| Usage
     Usage -->|"write hourly_usage"| Db
-    Usage -->|"HourlyUsageUpdatedMessage JSON<br/>publish to percentage_update_queue after DB commit"| Rabbit
+    Usage -->|"HourlyUsageUpdatedMessage JSON<br/>publish to percentage_update_queue"| Rabbit
     Rabbit -->|"consume percentage_update_queue<br/>HourlyUsageUpdatedMessage JSON"| Percentage
     Percentage -->|"read hourly_usage"| Db
     Percentage -->|"write current_percentage"| Db
@@ -33,8 +33,8 @@ flowchart TD
 |---|---|---|
 | `energy-producer` | Publishes `PRODUCER` JSON messages to `energy_queue`. | Calculates weather-dependent, randomly varied production values. |
 | `energy-user` | Publishes `USER` JSON messages to `energy_queue`. | Calculates time-of-day-dependent, randomly varied demand values. |
-| `usage-service` | Consumes `energy_queue`, writes `hourly_usage`, publishes `HourlyUsageUpdatedMessage` to `percentage_update_queue` after the DB commit. | Aggregates hourly values and assigns community energy before grid fallback. |
-| `percentage-service` | Consumes `percentage_update_queue`, reads `hourly_usage`, writes `current_percentage`. | Calculates current-hour community depletion and grid portion. |
+| `usage-service` | Consumes `energy_queue`, writes `hourly_usage`, publishes `HourlyUsageUpdatedMessage` to `percentage_update_queue`. | Aggregates hourly values and assigns community energy before grid fallback. |
+| `percentage-service` | Consumes `percentage_update_queue`, reads `hourly_usage`, writes `current_percentage`. | Calculates community depletion and grid portion for the updated hour. |
 | `rest-api` | Exposes `GET /energy/current` and `GET /energy/historical?start=...&end=...`; reads PostgreSQL only. | Provides the read-only client boundary. |
 | `energy-gui` | Calls only the REST endpoints. | Displays current percentages and historical totals in JavaFX. |
 

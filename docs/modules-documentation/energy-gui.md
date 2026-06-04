@@ -25,26 +25,12 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 | `app/EnergyGuiApplication` | Creates the JavaFX scene and wires the controller/client. |
 | `controller/EnergyDashboardController` | Builds UI controls, handles button actions, validates input, updates labels. |
 | `client/EnergyApiClient` | HTTP client for REST API calls. |
-| `client/EnergyApiException` | Controlled API error type. |
 | `dto/CurrentPercentageDTO` | DTO for `/energy/current`. |
 | `dto/HistoricalUsageDTO` | DTO for `/energy/historical`. |
-| `service/EnergyValueFormatter` | Formats percentages and kWh values for labels. |
 
 ## Configuration
 
-The GUI reads the REST API base URL at startup. It is overrideable without recompiling:
-
-| Source | Key | Default |
-|---|---|---|
-| System property | `energy.api.base-url` | `http://localhost:8080` |
-| Environment variable | `ENERGY_API_BASE_URL` | `http://localhost:8080` |
-
-The system property takes precedence over the environment variable. Example:
-
-```powershell
-cd energy-gui
-..\energy-producer\mvnw.cmd -f pom.xml javafx:run "-Denergy.api.base-url=http://localhost:9090"
-```
+The GUI calls the REST API at `http://localhost:8080`, which is the fixed local review/demo setup.
 
 ## Startup Without REST
 
@@ -62,7 +48,7 @@ Current data:
 
 Historical data:
 
-- User enters start/end date in `dd.MM.yyyy HH:mm` or ISO local datetime.
+- User enters start/end date as ISO local datetime, for example `2026-05-16T00:00`.
 - Show-data button calls `GET /energy/historical?start=...&end=...`.
 - GUI sums returned hourly rows and displays aggregate labels:
   - community produced,
@@ -145,4 +131,3 @@ Manual GUI check:
 4. Enter a date range that includes generated data.
 5. Click show data and verify historical aggregate labels.
 6. Confirm no database credentials or direct database connection are used by the GUI.
-

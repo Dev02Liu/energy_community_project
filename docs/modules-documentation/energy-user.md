@@ -23,13 +23,9 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 |---|---|
 | `EnergyUserApplication` | Spring Boot entry point, scheduling enabled, AMQP JSON converter bean. |
 | `messaging/EnergyMessage` | Service-local DTO published to RabbitMQ. Fields: `type`, `association`, `kwh`, `datetime`. |
-| `scheduling/EnergyUserScheduler` | Periodically triggers usage publishing when `app.scheduling.enabled=true`. |
-| `scheduling/SimulationDelayProvider` | Abstraction for simulation delay. |
-| `scheduling/RandomSimulationDelayProvider` | Adds randomized delay before each user event. |
+| `scheduling/EnergyUserScheduler` | Periodically waits a short random delay and triggers usage publishing. |
 | `service/EnergyUserService` | Creates user messages and publishes them to `energy_queue`. |
 | `service/EnergyUsageCalculator` | Applies time-of-day consumption profile. |
-| `service/UsageVariationProvider` | Abstraction for random kWh variation. |
-| `service/RandomUsageVariationProvider` | Supplies runtime random variation. |
 
 ## Configuration
 
@@ -39,7 +35,6 @@ File: `energy-user/src/main/resources/application.properties`
 |---|---|
 | HTTP port | none; this module is a RabbitMQ publisher |
 | `app.queue.name` | `energy_queue` |
-| `app.scheduling.enabled` | Enables/disables scheduled message publishing. |
 | `app.scheduling.fixed-delay-ms` | `1000`; combined with a randomized `0-3999 ms` wait, events are published every `1-5` seconds. |
 | `spring.autoconfigure.exclude` | Excludes JDBC/JPA autoconfiguration because this module must not use the database. |
 
@@ -60,17 +55,12 @@ The current `EnergyUsageCalculator` uses:
 flowchart LR
     Scheduler["EnergyUserScheduler<br/>@Scheduled"]
     Service["EnergyUserService"]
-    Clock["Clock / current time"]
-    Variation["UsageVariationProvider"]
     Calculator["EnergyUsageCalculator"]
     DTO["EnergyMessage<br/>type=USER"]
     Rabbit["RabbitMQ<br/>energy_queue"]
 
     Scheduler --> Service
-    Service --> Clock
-    Service --> Variation
-    Clock --> Calculator
-    Variation --> Calculator
+    Service --> Calculator
     Calculator --> DTO
     DTO --> Rabbit
 ```
