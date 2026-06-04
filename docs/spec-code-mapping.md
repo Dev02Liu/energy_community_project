@@ -31,7 +31,7 @@ Final grading components:
 
 | Component | Grading Requirement | Current Status | Risk |
 |---|---|---|---|
-| JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. 11 automated tests cover HTTP client and ISO date parsing. Historical values are shown as aggregate labels, not a per-hour table. |
+| JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. 9 automated tests cover the HTTP client and date/hour selection. The date range is chosen with a date picker plus an hour dropdown; historical values are shown as aggregate labels, not a per-hour table. |
 | REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Contract tests cover all required endpoints, ISO date format, and error cases. |
 | Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented | Low. Open-Meteo solar-radiation client, calculator, scheduler gating, contract tests, and smoke-test runbook exist. |
 | Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented | Low. Usage calculator, scheduler tests via application context, contract tests, and smoke-test runbook exist. |
@@ -75,9 +75,9 @@ This section maps the lecturer's grading-risk comments to the current implementa
 | Percentage persistence | Writes current percentage table | Service clears `current_percentage` and saves the latest calculated row | Implemented | REST and GUI display the latest calculated percentage values. |
 | REST current endpoint | `GET /energy/current` returns current percentage data | Reads the latest `current_percentage` row from DB; fallback returns zeros | Implemented | Controller mock tests + H2 contract tests cover all cases. |
 | REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; `start`/`end` bind to `LocalDateTime`, so an invalid date returns 400 | Implemented | H2 contract tests cover ISO format, out-of-range exclusion, and 400 on invalid date. A reversed range returns an empty list. |
-| JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, and `dto`; uses async HTTP and `Platform.runLater` | Implemented | ISO date input is validated before the API call; invalid format shows error in UI. |
+| JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, and `dto`; uses async HTTP and `Platform.runLater` | Implemented | Date range is selected via a `DatePicker` and an hour `ComboBox` (0–23, fixed in code, no DB coupling); errors are shown in the UI. |
 | GUI clean code | View/controller/client/DTO separation | `MainApp` is only entry point; HTTP/Jackson are in `EnergyApiClient`; simple label formatting stays in the controller | Implemented | Keep UI class from accumulating business or HTTP logic. |
-| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message/contract tests, user usage/message/contract tests, Usage/Percentage calculation and contract tests, Flyway-backed repository tests, REST contract tests, GUI client/validation tests | Implemented | 69 tests across all modules, 0 failures. |
+| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message/contract tests, user usage/message/contract tests, Usage/Percentage calculation and contract tests, Flyway-backed repository tests, REST contract tests, GUI client/selection tests | Implemented | 67 tests across all modules, 0 failures. |
 | Build artifacts | No generated files committed | `.gitignore` ignores `target/`; tracked GUI target artifacts were removed from Git index | Implemented | Verify again with `git ls-files | Select-String "target"` before submission. |
 
 ## Automated Project Test Run
@@ -91,9 +91,9 @@ Executed without starting RabbitMQ or PostgreSQL:
 | `usage-service` | `.\mvnw.cmd test` | 18 | Schema migration + calculation tests + message contract |
 | `percentage-service` | `.\mvnw.cmd test` | 12 | Schema migration + percentage calculation tests + message contract |
 | `rest-api` | `.\mvnw.cmd test` | 17 | Schema migration + controller mock tests + H2 contract tests + latest-row behavior |
-| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | 11 | API client (HTTP server), ISO date validation |
+| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | 9 | API client (HTTP server), date/hour selection |
 
-**Total: 69 tests, 0 failures** across all modules.
+**Total: 67 tests, 0 failures** across all modules.
 
 No RabbitMQ `Connection refused` stack trace occurred in producer/user tests after disabling scheduled publishers in test configuration.
 

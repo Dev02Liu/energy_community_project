@@ -23,7 +23,7 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 |---|---|
 | `MainApp` | JavaFX launcher entry point configured in Maven. |
 | `app/EnergyGuiApplication` | Creates the JavaFX scene and wires the controller/client. |
-| `controller/EnergyDashboardController` | Builds UI controls, handles button actions, validates input, updates labels. |
+| `controller/EnergyDashboardController` | Builds UI controls, handles button actions, reads the date/hour selection, updates labels. |
 | `client/EnergyApiClient` | HTTP client for REST API calls. |
 | `dto/CurrentPercentageDTO` | DTO for `/energy/current`. |
 | `dto/HistoricalUsageDTO` | DTO for `/energy/historical`. |
@@ -48,7 +48,7 @@ Current data:
 
 Historical data:
 
-- User enters start/end date as ISO local datetime, for example `2026-05-16T00:00`.
+- User selects the start/end **date** from a `DatePicker` (calendar) and the **hour** (`00:00`–`23:00`) from a `ComboBox` dropdown. The hour list is fixed in code (0–23), not loaded from the database. The GUI combines date + hour into a `LocalDateTime` and sends it as ISO to the REST API.
 - Show-data button calls `GET /energy/historical?start=...&end=...`.
 - GUI sums returned hourly rows and displays aggregate labels:
   - community produced,

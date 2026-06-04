@@ -7,15 +7,17 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
-import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
@@ -29,8 +31,10 @@ public class EnergyDashboardController {
 
     private Label communityPoolLabel;
     private Label gridPortionLabel;
-    private TextField startField;
-    private TextField endField;
+    private DatePicker startDate;
+    private ComboBox<String> startHour;
+    private DatePicker endDate;
+    private ComboBox<String> endHour;
     private Label communityProducedLabel;
     private Label communityUsedLabel;
     private Label gridUsedLabel;
@@ -46,12 +50,12 @@ public class EnergyDashboardController {
         Button refreshButton = new Button("refresh");
         refreshButton.setOnAction(ignored -> loadCurrentPercentages());
 
-        LocalDateTime now = LocalDateTime.now().withSecond(0).withNano(0);
-        startField = new TextField(now.toLocalDate().atStartOfDay().toString());
-        startField.setPromptText("Start (yyyy-MM-ddTHH:mm)");
+        LocalDate today = LocalDate.now();
+        startDate = new DatePicker(today);
+        startHour = hourComboBox("00:00");
 
-        endField = new TextField(now.toString());
-        endField.setPromptText("End (yyyy-MM-ddTHH:mm)");
+        endDate = new DatePicker(today);
+        endHour = hourComboBox(String.format("%02d:00", LocalDateTime.now().getHour()));
 
         Button showDataButton = new Button("show data");
         showDataButton.setOnAction(ignored -> loadHistoricalUsage());
@@ -66,9 +70,9 @@ public class EnergyDashboardController {
                 refreshButton,
                 new Separator(),
                 new Label("Start"),
-                startField,
+                new HBox(8, startDate, startHour),
                 new Label("End"),
-                endField,
+                new HBox(8, endDate, endHour),
                 showDataButton,
                 new Separator(),
                 communityProducedLabel,
@@ -77,6 +81,16 @@ public class EnergyDashboardController {
         );
         root.setPadding(new Insets(16));
         return root;
+    }
+
+    // Dropdown with the 24 hours of a day (00:00 .. 23:00). The list is fixed in code, not loaded from the database.
+    private ComboBox<String> hourComboBox(String selected) {
+        ComboBox<String> box = new ComboBox<>();
+        for (int hour = 0; hour < 24; hour++) {
+            box.getItems().add(String.format("%02d:00", hour));
+        }
+        box.setValue(selected);
+        return box;
     }
 
     public void loadCurrentPercentages() {
@@ -90,10 +104,10 @@ public class EnergyDashboardController {
     }
 
     private void loadHistoricalUsage() {
-        LocalDateTime start = parseGuiDate(startField.getText());
-        LocalDateTime end = parseGuiDate(endField.getText());
+        LocalDateTime start = toDateTime(startDate.getValue(), startHour.getValue());
+        LocalDateTime end = toDateTime(endDate.getValue(), endHour.getValue());
         if (start == null || end == null) {
-            showHistoricalError("Invalid date format (use yyyy-MM-ddTHH:mm)");
+            showHistoricalError("Please select a start and end");
             return;
         }
         if (start.isAfter(end)) {
@@ -110,15 +124,13 @@ public class EnergyDashboardController {
                 });
     }
 
-    static LocalDateTime parseGuiDate(String value) {
-        if (value == null || value.isBlank()) {
+    // Combines the picked date and the selected "HH:00" hour into a LocalDateTime.
+    static LocalDateTime toDateTime(LocalDate date, String hourLabel) {
+        if (date == null || hourLabel == null) {
             return null;
         }
-        try {
-            return LocalDateTime.parse(value.trim());
-        } catch (DateTimeParseException ex) {
-            return null;
-        }
+        int hour = Integer.parseInt(hourLabel.substring(0, 2));
+        return date.atTime(hour, 0);
     }
 
     private void showCurrentPercentage(CurrentPercentageDTO dto) {
