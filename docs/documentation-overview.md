@@ -54,6 +54,7 @@ flowchart LR
 | `docs/final-regression-checklist.md` | Grading-traceable hand-in checklist: one section per grading category, copyable commands. |
 | `docs/independent-startup-verification.md` | Independent startup and port/config isolation verification. |
 | `docs/spec-code-mapping.md` | Mapping between specification/grading risks and implementation. |
+| `docs/requirements-mapping-report.md` | Requirements/grading mapping plus the lecture-fidelity review of annotations and functions. |
 | `docs/project-status.md` | Current readiness state and remaining manual checks. |
 
 ## QA Reading Path

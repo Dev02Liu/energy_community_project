@@ -289,16 +289,12 @@ Calculation ownership:
 | Community depletion and grid portion percentages | Percentage Service | Updates `current_percentage`. |
 | No calculations | REST API and JavaFX GUI | REST reads stored values; GUI renders REST responses. |
 
-Energy Producer calculates a weather-dependent value between the configured minimum and maximum production:
+Energy Producer calculates a weather-dependent value between the configured minimum and maximum production. It reads the current solar radiation (W/m²) from Open-Meteo: the more the sun shines, the higher the value.
 
 ```text
-daylightFactor = daylight ? 1.0 : 0.12
-cloudFactor = 1.0 - cloudCoverPercent / 100 * 0.70
-radiationFactor = min(shortwaveRadiationWm2 / 800, 1.0)
-weatherFactor = max(radiationFactor, daylightFactor * cloudFactor)
-clampedFactor = clamp(weatherFactor, 0.05, 1.0)
-weatherBasedKwh = minKwh + (maxKwh - minKwh) * clampedFactor
-variation = random(-0.10, 0.10) * (maxKwh - minKwh)
+sunFactor = min(solarRadiation / 800, 1.0)
+weatherBasedKwh = minKwh + (maxKwh - minKwh) * sunFactor
+variation = (random(0, 1) - 0.5) * (maxKwh - minKwh) * 0.1
 producedKwh = clamp(weatherBasedKwh + variation, minKwh, maxKwh)
 ```
 

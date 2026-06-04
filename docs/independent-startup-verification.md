@@ -98,8 +98,8 @@ GET http://localhost:8080/energy/current
 ## 5. GUI startup without REST
 
 `EnergyGuiApplication.start()` builds and shows the window first, then issues the initial
-`/energy/current` call asynchronously (`CompletableFuture` with an `exceptionally` handler and a
-3-second connect timeout). If the REST API is unavailable, the GUI still opens and the labels show
+`/energy/current` call asynchronously (`CompletableFuture` with an `exceptionally` handler). If the
+REST API is unavailable, the request fails and the GUI still opens and the labels show
 `Error fetching data` instead of crashing; refresh and show-data behave the same way. This is both
 implemented and documented (see [modules-documentation/energy-gui.md](modules-documentation/energy-gui.md)).
 

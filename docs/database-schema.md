@@ -121,7 +121,7 @@ If technical audit timestamps become required, add a new Flyway migration instea
 | Energy Producer | none | none |
 | Energy User | none | none |
 | Usage Service | `hourly_usage` | `hourly_usage` |
-| Percentage Service | `hourly_usage`, `current_percentage` | `current_percentage` |
+| Percentage Service | `hourly_usage` | `current_percentage` |
 | REST API | `hourly_usage`, `current_percentage` | none |
 | JavaFX GUI | none directly | none |
 

@@ -36,8 +36,8 @@ The GUI calls the REST API at `http://localhost:8080`, which is the fixed local 
 
 The GUI is independently startable even when the REST API is unavailable. The window opens
 first, then the initial `/energy/current` call runs asynchronously. If the REST API is down,
-the request fails the connect timeout and the labels show `Error fetching data` instead of
-crashing. The same applies to the refresh and show-data actions, so the GUI degrades gracefully.
+the request fails and the labels show `Error fetching data` instead of crashing. The same
+applies to the refresh and show-data actions, so the GUI degrades gracefully.
 
 ## UI Behavior
 

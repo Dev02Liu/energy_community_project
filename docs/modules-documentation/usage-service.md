@@ -28,7 +28,7 @@ It consumes producer/user messages from RabbitMQ, aggregates them into hourly us
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO published after usage changes. |
 | `entity/HourlyUsageEntity` | JPA entity for table `hourly_usage`. |
 | `repository/HourlyUsageRepository` | Data access for hourly usage rows. |
-| `service/HourlyUsageUpdateService` | Validates messages, applies business calculation, writes DB, publishes update event. |
+| `service/HourlyUsageUpdateService` | Applies the business calculation, writes the DB, publishes the update event. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for required tables. |
 
 ## Configuration
@@ -114,10 +114,10 @@ sequenceDiagram
 
     Q->>L: EnergyMessage JSON
     L->>S: handleEnergyMessage(message)
-    S->>S: validate and truncate datetime to hour
+    S->>S: truncate datetime to hour
     S->>DB: find or create hourly row
     S->>DB: save updated usage values
-    DB-->>S: commit transaction
+    DB-->>S: row saved (committed)
     S->>UQ: publish HourlyUsageUpdatedMessage(hour)
 ```
 

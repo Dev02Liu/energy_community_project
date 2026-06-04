@@ -75,7 +75,7 @@ gridPortion = gridUsed / (communityUsed + gridUsed) * 100
 
 If `communityUsed + gridUsed = 0`, `gridPortion = 0`.
 
-Both values are rounded with `HALF_UP` to two decimals before persistence.
+Both values are rounded to two decimals (`Math.round(value * 100) / 100`) before persistence.
 
 ## Sequence Diagram
 
