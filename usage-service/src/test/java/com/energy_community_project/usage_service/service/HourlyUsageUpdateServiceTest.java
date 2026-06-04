@@ -11,8 +11,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -22,7 +20,6 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -255,108 +252,6 @@ class HourlyUsageUpdateServiceTest {
         ArgumentCaptor<HourlyUsageUpdatedMessage> msgCaptor = ArgumentCaptor.forClass(HourlyUsageUpdatedMessage.class);
         verify(rabbitTemplate).convertAndSend(eq("percentage_update_queue"), msgCaptor.capture());
         assertThat(msgCaptor.getValue().getHour()).isEqualTo(hour);
-    }
-
-    @Test
-    void updateMessageIsDeferredUntilTransactionCommit() {
-        LocalDateTime hour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
-        when(hourlyUsageRepository.findById(hour)).thenReturn(Optional.empty());
-        when(hourlyUsageRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        TransactionSynchronizationManager.initSynchronization();
-
-        try {
-            service.handleEnergyMessage(message("PRODUCER", 5.0, hour));
-
-            verifyNoInteractions(rabbitTemplate);
-            for (TransactionSynchronization synchronization : TransactionSynchronizationManager.getSynchronizations()) {
-                synchronization.afterCommit();
-            }
-
-            verify(rabbitTemplate).convertAndSend(eq("percentage_update_queue"), any(HourlyUsageUpdatedMessage.class));
-        } finally {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
-    }
-
-    // --- Invalid / null message handling ---
-
-    @Test
-    void nullMessageIsIgnored() {
-        service.handleEnergyMessage(null);
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithNullDatetimeIsIgnored() {
-        EnergyMessage msg = new EnergyMessage();
-        msg.setType("USER");
-        msg.setAssociation("COMMUNITY");
-        msg.setKwh(1.0);
-        msg.setDatetime(null);
-
-        service.handleEnergyMessage(msg);
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithNullTypeIsIgnored() {
-        EnergyMessage msg = new EnergyMessage();
-        msg.setType(null);
-        msg.setAssociation("COMMUNITY");
-        msg.setKwh(1.0);
-        msg.setDatetime(LocalDateTime.of(2025, 1, 10, 14, 0, 0));
-
-        service.handleEnergyMessage(msg);
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithUnknownTypeDoesNotWriteOrPublish() {
-        LocalDateTime hour = LocalDateTime.of(2025, 1, 10, 14, 0, 0);
-
-        service.handleEnergyMessage(message("UNKNOWN", 99.0, hour));
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithNegativeKwhDoesNotWriteOrPublish() {
-        EnergyMessage msg = message("USER", -0.1, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
-
-        service.handleEnergyMessage(msg);
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithNanKwhDoesNotWriteOrPublish() {
-        EnergyMessage msg = message("PRODUCER", Double.NaN, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
-
-        service.handleEnergyMessage(msg);
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithNullAssociationDoesNotWriteOrPublish() {
-        EnergyMessage msg = message("USER", 1.0, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
-        msg.setAssociation(null);
-
-        service.handleEnergyMessage(msg);
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
-    }
-
-    @Test
-    void messageWithInvalidAssociationDoesNotWriteOrPublish() {
-        EnergyMessage msg = message("PRODUCER", 1.0, LocalDateTime.of(2025, 1, 10, 14, 0, 0));
-        msg.setAssociation("OTHER");
-
-        service.handleEnergyMessage(msg);
-
-        verifyNoInteractions(hourlyUsageRepository, rabbitTemplate);
     }
 
     @Test

@@ -12,79 +12,52 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
-/**
- * Thin async HTTP client for the REST API — the GUI's only backend dependency (no DB/JPA/RabbitMQ).
- * Returns {@link CompletableFuture}s so the JavaFX UI thread is never blocked, and maps non-2xx
- * responses to {@link EnergyApiException}.
- */
+/** Calls the REST API and parses the JSON responses into DTOs. Requests run asynchronously so the GUI stays responsive. */
 public class EnergyApiClient {
 
     private final String baseUrl;
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public EnergyApiClient(String baseUrl) {
         this.baseUrl = baseUrl;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(3))
-                .build();
-        this.objectMapper = new ObjectMapper();
     }
 
     public CompletableFuture<CurrentPercentageDTO> fetchCurrentPercentage() {
-        HttpRequest request = newGetRequest(baseUrl + "/energy/current");
-        return send(request, responseBody -> objectMapper.readValue(responseBody, CurrentPercentageDTO.class));
+        return get("/energy/current").thenApply(body -> {
+            try {
+                return objectMapper.readValue(body, CurrentPercentageDTO.class);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     public CompletableFuture<List<HistoricalUsageDTO>> fetchHistoricalUsage(String start, String end) {
-        String encodedStart = encode(start);
-        String encodedEnd = encode(end);
-        HttpRequest request = newGetRequest(baseUrl + "/energy/historical?start=" + encodedStart + "&end=" + encodedEnd);
-
-        return send(request, responseBody -> objectMapper.readValue(
-                responseBody,
-                new TypeReference<List<HistoricalUsageDTO>>() {
-                }
-        ));
+        return get("/energy/historical?start=" + encode(start) + "&end=" + encode(end)).thenApply(body -> {
+            try {
+                return objectMapper.readValue(body, new TypeReference<List<HistoricalUsageDTO>>() {});
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
-    private HttpRequest newGetRequest(String url) {
-        return HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
-    }
-
-    /** Sends the request asynchronously, enforces a 2xx status, then maps the JSON body to the target type. */
-    private <T> CompletableFuture<T> send(HttpRequest request, ResponseMapper<T> mapper) {
+    private CompletableFuture<String> get(String path) {
+        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(baseUrl + path)).GET().build();
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                        throw new CompletionException(new EnergyApiException(
-                                "REST API returned status " + response.statusCode()
-                        ));
+                    if (response.statusCode() != 200) {
+                        throw new RuntimeException("REST API returned status " + response.statusCode());
                     }
-
-                    try {
-                        return mapper.map(response.body());
-                    } catch (IOException ex) {
-                        throw new CompletionException(ex);
-                    }
+                    return response.body();
                 });
     }
 
     private String encode(String value) {
         return URLEncoder.encode(value.trim(), StandardCharsets.UTF_8);
-    }
-
-    @FunctionalInterface
-    private interface ResponseMapper<T> {
-        T map(String responseBody) throws IOException;
     }
 }

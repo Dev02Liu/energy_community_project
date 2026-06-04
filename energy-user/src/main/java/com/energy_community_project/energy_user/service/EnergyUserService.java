@@ -5,32 +5,25 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Random;
 
-/** Builds time-of-day-dependent USER messages and publishes them to {@code energy_queue} (Energy User, 10%). */
 @Service
 public class EnergyUserService {
 
     private final RabbitTemplate rabbitTemplate;
     private final EnergyUsageCalculator usageCalculator;
-    private final UsageVariationProvider usageVariationProvider;
-    private final Clock clock;
+    private final Random random = new Random();
     private final String queueName;
 
     public EnergyUserService(RabbitTemplate rabbitTemplate,
                              EnergyUsageCalculator usageCalculator,
-                             UsageVariationProvider usageVariationProvider,
-                             Clock clock,
                              @Value("${app.queue.name}") String queueName) {
         this.rabbitTemplate = rabbitTemplate;
         this.usageCalculator = usageCalculator;
-        this.usageVariationProvider = usageVariationProvider;
-        this.clock = clock;
         this.queueName = queueName;
     }
 
-    /** Creates one usage message and sends it to the queue (called on each scheduler tick). */
     public void publishUsageData() {
         EnergyMessage msg = createUsageMessage();
 
@@ -38,10 +31,9 @@ public class EnergyUserService {
         System.out.println("Sent: " + msg.getType() + " - " + String.format("%.5f", msg.getKwh()) + " kWh");
     }
 
-    /** Derives the demanded kWh from the current time of day plus random variation, and assembles the event. */
     public EnergyMessage createUsageMessage() {
-        LocalDateTime now = LocalDateTime.now(clock);
-        double usedKwh = usageCalculator.calculateKwh(now, usageVariationProvider.nextVariationKwh());
+        LocalDateTime now = LocalDateTime.now();
+        double usedKwh = usageCalculator.calculateKwh(now, random.nextDouble() * 0.002);
 
         EnergyMessage msg = new EnergyMessage();
         msg.setType("USER");

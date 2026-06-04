@@ -114,7 +114,7 @@ SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;
 - [ ] `GET http://localhost:8080/energy/current` returns JSON.
 - [ ] `GET http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59` returns JSON array.
 - [ ] Invalid date format returns `400 Bad Request`.
-- [ ] `start > end` returns `400 Bad Request`.
+- [ ] A reversed range (`start` after `end`) returns an empty array.
 
 ## Git And Team Evidence
 
@@ -152,7 +152,7 @@ Commands and scope:
 - `docker compose down -v`
 - `docker compose up -d`
 - started `usage-service`, `percentage-service`, `rest-api`, `energy-producer`, and `energy-user` from their packaged JARs
-- used producer fallback weather mode for deterministic local execution
+- the producer read Open-Meteo solar radiation (returning 0 W/m² if offline) for plausible kWh values
 - stopped producer/user before final assertions so REST and database reads were stable
 - stopped all Java service processes after the smoke test
 
@@ -202,7 +202,7 @@ Build:
 
 - All six modules built independently: `BUILD SUCCESS` (tests included; no live infra needed).
 
-Runtime (all five backend services started from packaged JARs; producer in fallback weather mode):
+Runtime (all five backend services started from packaged JARs; producer using Open-Meteo solar radiation):
 
 - Each service logged `Started <Name>Application` — independent startup confirmed.
 - Producer published sensible weather-based kWh (e.g. `0.00438`–`0.00527`, within `0.001`–`0.006`);

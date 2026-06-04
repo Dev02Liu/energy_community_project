@@ -31,12 +31,12 @@ Final grading components:
 
 | Component | Grading Requirement | Current Status | Risk |
 |---|---|---|---|
-| JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. 22 automated tests cover HTTP client, date parsing, and value formatting. Historical values are currently shown as aggregate labels, not a per-hour table. |
-| REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Contract tests cover all required endpoints, both date formats, and error cases. |
-| Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented | Low. Open-Meteo adapter, fallback, calculator, scheduler gating, contract tests, and smoke-test runbook exist. |
-| Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented | Low. Usage calculator, fixed-clock tests, scheduler gating, contract tests, and smoke-test runbook exist. |
-| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. Focused unit tests cover spec example, producer/user aggregation, grid fallback, hour bucketing, user-before-producer ordering, and invalid-message rejection. |
-| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. Focused unit tests cover spec example, zero production/usage, full depletion, existing row updates, null handling, and two-decimal rounding. Table semantics documented. |
+| JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. 11 automated tests cover HTTP client and ISO date parsing. Historical values are shown as aggregate labels, not a per-hour table. |
+| REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Contract tests cover all required endpoints, ISO date format, and error cases. |
+| Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented | Low. Open-Meteo solar-radiation client, calculator, scheduler gating, contract tests, and smoke-test runbook exist. |
+| Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented | Low. Usage calculator, scheduler tests via application context, contract tests, and smoke-test runbook exist. |
+| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. Focused unit tests cover spec example, producer/user aggregation, grid fallback, hour bucketing, and user-before-producer ordering; also verified end-to-end against the spec example. |
+| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. Focused unit tests cover spec example, zero production/usage, full depletion, existing row updates, and two-decimal rounding. Table semantics documented. |
 
 ## Lecturer Risk Checklist
 
@@ -49,7 +49,7 @@ This section maps the lecturer's grading-risk comments to the current implementa
 | Each team member needs own commits | Verified via `git shortlog -sn` (documented in `docs/final-regression-checklist.md` and `docs/final-readiness-check.md`); members are named in the submission text. | Manual check |
 | Usage/Percentage calculations are major grading risk | Focused tests cover hourly bucketing, grid fallback, invariant, user-before-producer ordering, division by zero, and percentage rounding. | Met |
 | Messages are aggregated hourly | Usage Service truncates minute/second/nano to the hour; tests cover `14:34 -> 14:00`. | Met |
-| Producer uses weather; User uses time of day | Producer has Open-Meteo plus fallback weather; User has time-of-day calculator and tests. | Met |
+| Producer uses weather; User uses time of day | Producer reads Open-Meteo solar radiation; User has time-of-day calculator and tests. | Met |
 | Usage Service is central integration component | Usage consumes producer/user messages, writes `hourly_usage`, and publishes update messages. | Met |
 | Percentage reacts after Usage update | Percentage consumes `percentage_update_queue`; it does not consume producer/user messages or poll as the main trigger. | Met |
 | No Grid message | Grid usage is calculated from the uncovered user demand in Usage Service. | Met |
@@ -66,18 +66,18 @@ This section maps the lecturer's grading-risk comments to the current implementa
 | Independent components | Six applications start independently | Six separate Maven modules/apps exist; `shared` removed from active dependencies | Implemented | Avoid reintroducing shared compile-time DTO modules. |
 | Message contract | JSON messages documented as contracts, not shared Java dependency | `docs/message-contract.md` documents `EnergyMessage` and `HourlyUsageUpdatedMessage`; local DTOs per service; service-local contract tests cover required fields | Implemented | Keep contract tests updated when message fields change. |
 | RabbitMQ topology | Producer/user messages to usage; usage update message to percentage | `energy_queue` for producer/user, `percentage_update_queue` for derived update events | Implemented | Exchange/per-service queues only needed if more consumers must observe the same stream. |
-| Energy Producer weather | Produced kWh must be weather-dependent | `WeatherClient`, `OpenMeteoWeatherClient`, `FallbackWeatherClient`, `ResilientWeatherClient`, and `WeatherProductionCalculator` are used by `EnergyProducerService` | Implemented | Use fallback mode for deterministic demos if Open-Meteo is unavailable. |
+| Energy Producer weather | Produced kWh must be weather-dependent | `WeatherClient` (Open-Meteo solar radiation) and `WeatherProductionCalculator` are used by `EnergyProducerService` | Implemented | If Open-Meteo is unreachable, `WeatherClient` returns `0` W/m² and the producer keeps running. |
 | Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; `EnergyProducerScheduler` preserves random 1-5 second delay and can be disabled in tests | Implemented | Covered by unit, contract, and smoke-test documentation. |
-| Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with fixed-clock testability | Implemented | Covered by unit, contract, and smoke-test documentation. |
-| Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed`; invalid messages are rejected before DB writes or update events | Implemented | Keep validation tests in place when changing message contracts. |
+| Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with the current timestamp | Implemented | Covered by unit, contract, and smoke-test documentation. |
+| Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed` | Implemented | Verified end-to-end against the spec example through RabbitMQ and the DB. |
 | Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Fresh Docker PostgreSQL smoke evidence is recorded; repeat `docs/smoke-test.md` before hand-in. |
 | Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100`, then rounds persisted values to two decimals | Implemented | Keep formula and rounding tests in place. |
-| Percentage persistence | Writes current percentage table | JPA entity/repository for `current_percentage`; stale rows are removed when the current hour is recalculated | Implemented | Only current-hour percentage data remains. |
-| REST current endpoint | `GET /energy/current` returns current hour percentage | Reads the exact current-hour `current_percentage` row from DB; fallback returns zeros | Implemented | Controller mock tests + H2 contract tests cover all cases. |
-| REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; supports ISO and `dd.MM.yyyy HH:mm`; invalid range returns 400 | Implemented | H2 contract tests cover ISO format, German format, out-of-range exclusion, 400 on invalid date, and 400 on start-after-end. |
-| JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, `dto`, `service`; uses async HTTP and `Platform.runLater` | Implemented | Date input validated before API call; invalid format shows error in UI. |
-| GUI clean code | View/controller/client/DTO/formatting separated | `MainApp` is only entry point; HTTP/Jackson are in `EnergyApiClient` | Implemented | Keep UI class from accumulating business or HTTP logic. |
-| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message/contract tests, user usage/message/contract tests, Usage/Percentage calculation and contract tests, Flyway-backed repository tests, REST contract tests, GUI client/validation/formatter tests | Implemented | 103 tests across all modules, 0 failures. |
+| Percentage persistence | Writes current percentage table | Service clears `current_percentage` and saves the latest calculated row | Implemented | REST and GUI display the latest calculated percentage values. |
+| REST current endpoint | `GET /energy/current` returns current percentage data | Reads the latest `current_percentage` row from DB; fallback returns zeros | Implemented | Controller mock tests + H2 contract tests cover all cases. |
+| REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; `start`/`end` bind to `LocalDateTime`, so an invalid date returns 400 | Implemented | H2 contract tests cover ISO format, out-of-range exclusion, and 400 on invalid date. A reversed range returns an empty list. |
+| JavaFX GUI | REST-only dashboard with current and historical display | Split into `app`, `controller`, `client`, and `dto`; uses async HTTP and `Platform.runLater` | Implemented | ISO date input is validated before the API call; invalid format shows error in UI. |
+| GUI clean code | View/controller/client/DTO separation | `MainApp` is only entry point; HTTP/Jackson are in `EnergyApiClient`; simple label formatting stays in the controller | Implemented | Keep UI class from accumulating business or HTTP logic. |
+| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message/contract tests, user usage/message/contract tests, Usage/Percentage calculation and contract tests, Flyway-backed repository tests, REST contract tests, GUI client/validation tests | Implemented | 69 tests across all modules, 0 failures. |
 | Build artifacts | No generated files committed | `.gitignore` ignores `target/`; tracked GUI target artifacts were removed from Git index | Implemented | Verify again with `git ls-files | Select-String "target"` before submission. |
 
 ## Automated Project Test Run
@@ -86,14 +86,14 @@ Executed without starting RabbitMQ or PostgreSQL:
 
 | Module | Command | Tests | Notes |
 |---|---|---|---|
-| `energy-producer` | `.\mvnw.cmd test` | 8 | Weather adapter, fallback, bounded random production variation, message contract |
-| `energy-user` | `.\mvnw.cmd test` | 5 | Usage calculator, fixed-clock message creation, message contract |
-| `usage-service` | `.\mvnw.cmd test` | 27 | Schema migration + calculation/validation tests + message contract |
-| `percentage-service` | `.\mvnw.cmd test` | 16 | Schema migration + percentage calculation tests + message contract |
-| `rest-api` | `.\mvnw.cmd test` | 25 | Schema migration + controller mock tests + H2 contract tests + latest-row behavior |
-| `energy-gui` | `.\mvnw -f .\energy-gui\pom.xml test` | 22 | API client (HTTP server), date validation, value formatter |
+| `energy-producer` | `.\mvnw.cmd test` | 6 | Open-Meteo weather client, bounded random production variation, message contract |
+| `energy-user` | `.\mvnw.cmd test` | 5 | Usage calculator, message creation, message contract |
+| `usage-service` | `.\mvnw.cmd test` | 18 | Schema migration + calculation tests + message contract |
+| `percentage-service` | `.\mvnw.cmd test` | 12 | Schema migration + percentage calculation tests + message contract |
+| `rest-api` | `.\mvnw.cmd test` | 17 | Schema migration + controller mock tests + H2 contract tests + latest-row behavior |
+| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | 11 | API client (HTTP server), ISO date validation |
 
-**Total: 103 tests, 0 failures** across all modules without any running infrastructure.
+**Total: 69 tests, 0 failures** across all modules.
 
 No RabbitMQ `Connection refused` stack trace occurred in producer/user tests after disabling scheduled publishers in test configuration.
 
@@ -124,33 +124,26 @@ spring.jpa.hibernate.ddl-auto=validate
 
 ## Weather Adapter Details
 
-The producer now uses this flow:
+The producer uses this flow:
 
 ```text
 EnergyProducerService
-  -> WeatherClient
-  -> ResilientWeatherClient
-  -> OpenMeteoWeatherClient or FallbackWeatherClient
+  -> WeatherClient (current solar radiation from Open-Meteo)
   -> WeatherProductionCalculator
   -> EnergyMessage
   -> RabbitMQ energy_queue
 ```
+
+`WeatherClient` returns `0` W/m² if the Open-Meteo API cannot be reached, so the producer keeps
+publishing (at the minimum kWh) even offline.
 
 Configuration:
 
 ```properties
 app.production.min-kwh=0.001
 app.production.max-kwh=0.006
-app.weather.mode=open-meteo
 app.weather.latitude=48.2082
 app.weather.longitude=16.3738
-app.weather.open-meteo.base-url=https://api.open-meteo.com/v1/forecast
-```
-
-Test mode uses:
-
-```properties
-app.weather.mode=fallback
 ```
 
 Automated verification:
@@ -164,11 +157,11 @@ Latest result: 6 tests, 0 failures, 0 errors.
 
 ## Deterministic Scheduling And Simulation Details
 
-Producer and user scheduled publishing now follow the same pattern:
+Producer and user scheduled publishing follow the same simple pattern:
 
 ```text
 Scheduler
-  -> SimulationDelayProvider
+  -> short random sleep
   -> Service#create...Message
   -> RabbitTemplate.convertAndSend
 ```
@@ -176,21 +169,19 @@ Scheduler
 Runtime properties:
 
 ```properties
-app.scheduling.enabled=true
 app.scheduling.fixed-delay-ms=1000
 ```
 
 Test properties:
 
 ```properties
-app.scheduling.enabled=false
+spring.task.scheduling.enabled=false
+app.scheduling.initial-delay-ms=600000
 ```
 
-`energy-user` now has deterministic collaborators:
+`energy-user` has one small calculator collaborator:
 
 - `EnergyUsageCalculator` for time-of-day multipliers
-- `UsageVariationProvider` for random kWh variation
-- injected `Clock` for fixed timestamp tests
 
 Automated verification:
 
@@ -199,30 +190,30 @@ cd energy-user
 .\mvnw.cmd test
 ```
 
-Latest result: 4 tests, 0 failures, 0 errors.
+Latest result: 5 tests, 0 failures, 0 errors.
 
-## current_percentage Table Semantics (Issue 6 Decision)
+## current_percentage Table Semantics
 
-**Chosen behavior: only the current-hour row is retained and returned.**
+**Chosen behavior: the table stores the latest calculated percentage row.**
 
 ### Rationale
 
-The `current_percentage` table uses `hour` (a `LocalDateTime` truncated to the full hour) as its primary key. The `percentage-service` ignores delayed updates for older hours and removes stale percentage rows when it recalculates the current hour. `GET /energy/current` reads the exact current-hour row and returns zeros if no such row exists.
+The `percentage-service` receives an update event with an hour, reads the matching `hourly_usage` row, calculates the two percentages, clears `current_percentage`, and saves one row for that calculated hour. `GET /energy/current` reads the newest row and returns zeros if no percentage data exists.
 
-This keeps the required current-hour semantics without a schema change or special singleton row.
+This keeps the REST/GUI display simple: there is only one current display value to explain.
 
 ### Invariants enforced by design
 
 | Rule | How it holds |
 |---|---|
 | Each hour has at most one row | `hour` is the primary key — duplicate saves are upserts |
-| `GET /current` never returns stale data | Repository lookup uses the exact current-hour PK |
+| `GET /current` has a simple read path | Repository lookup uses `findFirstByOrderByHourDesc()` |
 | No ambiguous data is created | Same hour → same PK → same row is overwritten |
 
 ### Tests
 
-- `CurrentPercentageLatestRowTest` (H2): proves repository lookup selects the requested current-hour row and that saving the same hour twice results in exactly one row (upsert).
-- `EnergyControllerTest` (MockMvc): proves `GET /energy/current` returns the current-hour row and falls back to zeros when no current-hour data exists.
+- `CurrentPercentageLatestRowTest` (H2): proves repository lookup selects the newest row and that saving the same hour twice results in exactly one row.
+- `EnergyControllerTest` (MockMvc): proves `GET /energy/current` returns the newest row and falls back to zeros when no percentage data exists.
 
 ## Remaining Gaps
 

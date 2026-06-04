@@ -78,14 +78,13 @@ Fields:
 | `kwh` | number | yes | Non-negative produced or requested energy amount |
 | `datetime` | ISO-8601 local datetime string | yes | Event timestamp used for hourly aggregation |
 
-Validation in `usage-service`:
+Message handling in `usage-service`:
 
-- rejects null messages,
-- rejects unknown types,
-- rejects invalid associations,
-- rejects null datetimes,
-- rejects negative, NaN, or infinite kWh values,
-- invalid messages do not write the database and do not publish update events.
+- a `PRODUCER` message increases `community_produced`,
+- every other message is treated as usage (community pool first, then grid).
+
+The only senders are the Energy Producer and Energy User, which always send valid `COMMUNITY`
+messages, so the service stays close to the lecture example and does not add extra validation.
 
 ## Producer Message Example
 

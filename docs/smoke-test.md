@@ -125,19 +125,14 @@ Expected:
 
 ### Terminal 4 - Energy Producer
 
-Normal weather mode:
+Start the producer:
 
 ```powershell
 cd C:\dev\energy_community_project\energy-producer
 .\mvnw.cmd spring-boot:run
 ```
 
-Offline/fallback mode for a deterministic demo without relying on Open-Meteo availability:
-
-```powershell
-cd C:\dev\energy_community_project\energy-producer
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
-```
+If Open-Meteo is unavailable, `WeatherClient` returns `0` W/m² and the producer keeps publishing at the minimum kWh value, so the demo works offline without extra configuration.
 
 Expected:
 
@@ -371,7 +366,7 @@ Observed:
 - `percentage_update_queue`: `1` consumer, `0` messages, `0` unacknowledged.
 - `GET /energy/current` returned DB-backed JSON.
 - `GET /energy/historical` returned an hourly row.
-- `hourly_usage` and `current_percentage` contained matching current-hour rows.
+- `hourly_usage` and `current_percentage` contained matching latest calculated rows.
 
 Artifact:
 

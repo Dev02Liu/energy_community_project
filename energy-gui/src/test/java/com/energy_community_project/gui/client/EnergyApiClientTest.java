@@ -65,11 +65,11 @@ class EnergyApiClientTest {
             }
         });
 
-        client.fetchHistoricalUsage("10.01.2025 14:00", "10.01.2025 23:00").get();
+        client.fetchHistoricalUsage("2025-01-10T14:00", "2025-01-10T23:00").get();
 
         assertThat(capturedQuery.get())
-                .contains("start=10.01.2025+14%3A00")
-                .contains("end=10.01.2025+23%3A00");
+                .contains("start=2025-01-10T14%3A00")
+                .contains("end=2025-01-10T23%3A00");
     }
 
     @Test
@@ -107,7 +107,7 @@ class EnergyApiClientTest {
     }
 
     @Test
-    void fetchCurrentPercentage_serverReturns400_throwsEnergyApiException() {
+    void fetchCurrentPercentage_serverReturns400_throwsRuntimeException() {
         server.createContext("/energy/current", exchange -> {
             exchange.sendResponseHeaders(400, -1);
             exchange.close();
@@ -115,6 +115,6 @@ class EnergyApiClientTest {
 
         assertThatThrownBy(() -> client.fetchCurrentPercentage().get())
                 .isInstanceOf(ExecutionException.class)
-                .hasCauseInstanceOf(EnergyApiException.class);
+                .hasCauseInstanceOf(RuntimeException.class);
     }
 }

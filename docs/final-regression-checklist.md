@@ -69,7 +69,7 @@ rg "com\.energy_community_project\.shared" .
       PostgreSQL; GUI needs only itself). Each backend log shows `Started <Name>Application`.
 - [ ] **Builds and runs with no errors**: all 6 `clean package` runs end in `BUILD SUCCESS`.
 - [ ] **Spring Boot for REST API**: `rest-api/pom.xml` uses `spring-boot-starter-webmvc`.
-- [ ] **JavaFX for GUI**: `energy-gui/pom.xml` uses `javafx-controls` / `javafx-fxml` and the
+- [ ] **JavaFX for GUI**: `energy-gui/pom.xml` uses `javafx-controls` and the
       `javafx-maven-plugin`.
 - [ ] **RabbitMQ for service communication**: producer/user → `energy_queue` → usage; usage →
       `percentage_update_queue` → percentage (confirm in step 8 below and the Management UI).
@@ -93,14 +93,8 @@ rg "com\.energy_community_project\.shared" .
       random 0–4 s sleep before each publish; eyeball the timestamps of consecutive lines).
 - [ ] kWh value is random but sensible (within configured `app.production.min-kwh` …
       `app.production.max-kwh`, default `0.001`–`0.006`).
-- [ ] Weather determines the value: with internet, producer fetches Open-Meteo; offline it logs
-      `Falling back to local weather simulation` and still produces weather-factored values.
-
-```powershell
-# Optional: force deterministic offline weather mode for the demo
-cd energy-producer
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
-```
+- [ ] Weather determines the value: with internet, producer fetches the current Open-Meteo solar
+      radiation; offline `WeatherClient` logs `Weather API not reachable` and produces the minimum kWh.
 
 ---
 
@@ -136,7 +130,7 @@ docker exec energy-db psql -U user -d energy_community -c "SELECT * FROM hourly_
 - [ ] Allocation is correct: community energy covers demand first, remainder goes to grid
       (`community_used` + `grid_used` reconcile with messages for the hour).
 - [ ] Invariant `community_used <= community_produced` holds (query above returns **no rows**).
-- [ ] After a DB commit, an update message is published to `percentage_update_queue`
+- [ ] After saving the hourly usage row, an update message is published to `percentage_update_queue`
       (verify via Management UI / step 8).
 
 ---
@@ -173,7 +167,7 @@ curl "http://localhost:8080/energy/historical?start=not-a-date&end=also-bad"   #
       backend runs — not static).
 - [ ] `GET /energy/historical?start=...&end=...` returns a JSON array backed by `hourly_usage`.
 - [ ] Cross-check: REST `current` values equal the latest `current_percentage` DB row.
-- [ ] Invalid date format returns `400 Bad Request`; `start > end` returns `400 Bad Request`.
+- [ ] Invalid date format returns `400 Bad Request`; a reversed range (`start` after `end`) returns an empty array.
 
 ---
 
@@ -185,7 +179,7 @@ curl "http://localhost:8080/energy/historical?start=not-a-date&end=also-bad"   #
 
 - [ ] GUI shows **community pool usage** and **grid portion** in percent.
 - [ ] **Refresh** button reloads current values from `GET /energy/current`.
-- [ ] Date range can be selected (start/end fields, `dd.MM.yyyy HH:mm`).
+- [ ] Date range can be selected (start/end fields, ISO format such as `2026-05-16T00:00`).
 - [ ] **Show data** button displays **community produced / used / grid used** in kWh for the range
       (from `GET /energy/historical`).
 - [ ] GUI calls only the REST API — no PostgreSQL/JPA/RabbitMQ dependency.
@@ -237,8 +231,8 @@ These appear during a healthy build/run and do **not** indicate failure:
       `A Java agent has been loaded dynamically` — test-time Mockito/ByteBuddy notice on Java 25.
 - [ ] `OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes ...` —
       JVM CDS notice; harmless.
-- [ ] Producer `Falling back to local weather simulation: offline` — expected when Open-Meteo is
-      unreachable or `--app.weather.mode=fallback` is set; producer keeps working.
+- [ ] Producer `Weather API not reachable, using 0 W/m2` — expected when Open-Meteo is
+      unreachable; `WeatherClient` returns `0` and the producer keeps working at minimum kWh.
 - [ ] Git `LF will be replaced by CRLF` — Windows line-ending notice on commit; harmless.
 
 Any warning **not** listed here should be investigated before hand-in.

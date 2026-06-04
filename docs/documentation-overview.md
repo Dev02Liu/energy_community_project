@@ -55,7 +55,6 @@ flowchart LR
 | `docs/independent-startup-verification.md` | Independent startup and port/config isolation verification. |
 | `docs/spec-code-mapping.md` | Mapping between specification/grading risks and implementation. |
 | `docs/project-status.md` | Current readiness state and remaining manual checks. |
-| `docs/final-specification-audit-report.md` | Detailed specification audit and presentation-readiness baseline. |
 
 ## QA Reading Path
 

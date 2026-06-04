@@ -51,8 +51,8 @@ flowchart LR
 |---|---|---:|---|---|
 | Energy Producer | `energy-producer` | n/a | `.\mvnw.cmd spring-boot:run` | Publishes weather-dependent, randomly varied `PRODUCER` messages. |
 | Energy User | `energy-user` | n/a | `.\mvnw.cmd spring-boot:run` | Publishes time-of-day-dependent `USER` messages. |
-| Usage Service | `usage-service` | n/a | `.\mvnw.cmd spring-boot:run` | Consumes producer/user messages, aggregates hourly usage, writes `hourly_usage`, publishes usage updates after the DB commit. |
-| Percentage Service | `percentage-service` | n/a | `.\mvnw.cmd spring-boot:run` | Consumes usage updates for the current hour, calculates rounded percentages, writes `current_percentage`. |
+| Usage Service | `usage-service` | n/a | `.\mvnw.cmd spring-boot:run` | Consumes producer/user messages, aggregates hourly usage, writes `hourly_usage`, then publishes usage updates. |
+| Percentage Service | `percentage-service` | n/a | `.\mvnw.cmd spring-boot:run` | Consumes usage updates, calculates rounded percentages, writes `current_percentage`. |
 | REST API | `rest-api` | 8080 | `.\mvnw.cmd spring-boot:run` | Read-only API for current and historical energy data. |
 | JavaFX GUI | `energy-gui` | n/a | `..\energy-producer\mvnw.cmd -f pom.xml javafx:run` | Desktop GUI that calls only the REST API. |
 
@@ -104,20 +104,19 @@ Ports and credentials:
 
 ## Configuration and Overrides
 
-Each component owns its configuration. The Spring Boot services read `src/main/resources/application.properties`; the GUI reads its base URL at startup. Per-module configuration tables are documented under [docs/modules-documentation/](docs/modules-documentation/).
+Each Spring Boot component owns its configuration in `src/main/resources/application.properties`. The GUI uses `http://localhost:8080` because the local review/demo setup runs the REST API on port `8080`. Per-module configuration tables are documented under [docs/modules-documentation/](docs/modules-documentation/).
 
 Only `rest-api` binds an HTTP port (`8080`). The four RabbitMQ worker services (`energy-producer`, `energy-user`, `usage-service`, `percentage-service`) start no servlet container, so there is no port conflict when they run together.
 
-All values are overrideable without editing files:
+Spring Boot values are overrideable without editing files:
 
 | Component(s) | Example override |
 |---|---|
 | Any Spring service | `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.port=8090 --spring.datasource.url=jdbc:postgresql://db:5432/energy_community"` |
 | Any Spring service (env var) | `$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://db:5432/energy_community"` before starting |
-| Energy Producer weather | `--app.weather.mode=fallback` |
-| JavaFX GUI base URL | `-Denergy.api.base-url=http://host:8080` or `$env:ENERGY_API_BASE_URL` |
+| Energy Producer location | `--app.weather.latitude=48.2082 --app.weather.longitude=16.3738` |
 
-Key overrideable properties: `spring.datasource.url` / `username` / `password`, `spring.rabbitmq.host` / `port`, `app.queue.name`, `app.update-queue.name`, `server.port` (rest-api), and `app.weather.*` (producer).
+Key overrideable properties: `spring.datasource.url` / `username` / `password`, `spring.rabbitmq.host` / `port`, `app.queue.name`, `app.update-queue.name`, `server.port` (rest-api), and `app.weather.latitude` / `longitude` (producer).
 
 ## Build Commands
 
@@ -191,12 +190,7 @@ cd energy-gui
 ..\energy-producer\mvnw.cmd -f pom.xml javafx:run
 ```
 
-Optional producer offline/weather fallback mode:
-
-```powershell
-cd energy-producer
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
-```
+The producer reads the current solar radiation from Open-Meteo. If the API is unreachable it logs a notice, uses `0` W/m², and keeps publishing at the minimum kWh value, so it also runs offline.
 
 ## REST API
 
@@ -207,7 +201,7 @@ GET http://localhost:8080/energy/current
 GET http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59
 ```
 
-The historical endpoint accepts ISO local datetime and the GUI format `dd.MM.yyyy HH:mm`.
+The historical endpoint accepts ISO local datetime values.
 
 Example:
 
@@ -279,7 +273,7 @@ Implemented tables:
 | Table | Responsibility | Writer | Readers |
 |---|---|---|---|
 | `hourly_usage` | Aggregated hourly energy usage. Conceptually equivalent to `energy_usage_hourly` in the project mapping. | Usage Service | Percentage Service, REST API |
-| `current_percentage` | Percentage values for the current hour only. | Percentage Service | REST API |
+| `current_percentage` | Latest calculated percentage values displayed by REST and GUI. | Percentage Service | REST API |
 
 Detailed schema mapping is documented in [docs/database-schema.md](docs/database-schema.md).
 
@@ -374,8 +368,7 @@ The GUI:
 The GUI is independently startable: if the REST API is unavailable it still opens and shows
 `Error fetching data` in the labels instead of crashing. Start the REST API to see live data.
 
-The REST base URL defaults to `http://localhost:8080` and is overrideable without recompiling
-via the `energy.api.base-url` system property or the `ENERGY_API_BASE_URL` environment variable.
+The GUI calls the REST API at `http://localhost:8080`.
 
 ## Final Demo Flow
 

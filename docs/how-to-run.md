@@ -85,14 +85,7 @@ cd energy-producer
 .\mvnw.cmd spring-boot:run
 ```
 
-The producer fetches weather data from Open-Meteo by default and falls back to local weather simulation if the external API is unavailable.
-
-Offline/fallback mode:
-
-```powershell
-cd energy-producer
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.weather.mode=fallback"
-```
+The producer fetches the current solar radiation from Open-Meteo. If the API is unavailable, `WeatherClient` returns `0` W/m² and the producer keeps publishing at the minimum kWh value, so no extra configuration is needed to run offline.
 
 ### 5. Energy User
 
@@ -235,4 +228,4 @@ docker compose down -v
 | REST returns zeros | No percentage row yet | Start producer, user, usage, and percentage services. |
 | `current_percentage` is not updating | Percentage Service not running or update queue stuck | Check `percentage_update_queue` and percentage logs. |
 | GUI cannot load data | REST API not running on port `8080` | Start `rest-api` and retry. |
-| Producer uses fallback weather | Open-Meteo unavailable | Expected; fallback keeps demo working. |
+| Producer logs "Weather API not reachable" | Open-Meteo unavailable | Expected; `WeatherClient` returns `0` W/m² and the producer keeps working. |

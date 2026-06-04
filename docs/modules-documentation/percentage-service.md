@@ -30,7 +30,7 @@ It consumes usage update messages from RabbitMQ, reads the matching hourly usage
 | `entity/HourlyUsageEntity` | Read model for table `hourly_usage`. |
 | `entity/CurrentPercentageEntity` | Write model for table `current_percentage`. |
 | `repository/HourlyUsageRepository` | Reads hourly usage rows. |
-| `repository/CurrentPercentageRepository` | Reads/writes current percentage rows. |
+| `repository/CurrentPercentageRepository` | Writes the latest percentage row. |
 | `service/CurrentPercentageCalculationService` | Calculates and persists rounded percentage values. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for required tables. |
 
@@ -91,14 +91,10 @@ sequenceDiagram
 
     Q->>L: HourlyUsageUpdatedMessage(hour)
     L->>S: updateCurrentPercentage(hour)
-    alt delayed event for an older hour
-        S-->>L: ignore event
-    else event for the current hour
     S->>HU: read hourly usage row
     S->>S: calculate rounded percentages
-    S->>CP: delete stale rows for other hours
-    S->>CP: upsert percentage row
-    end
+    S->>CP: delete existing percentage rows
+    S->>CP: save latest percentage row
 ```
 
 ## Start Command
@@ -123,6 +119,5 @@ Important checks:
 - Writes `current_percentage`.
 - Avoids division by zero.
 - Rounds persisted values to two decimals.
-- Ignores delayed update events for older hours.
-- Removes stale percentage rows when recalculating the current hour.
+- Clears `current_percentage` before saving the latest calculated row.
 - Contract test deserializes documented update JSON.
