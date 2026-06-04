@@ -5,7 +5,6 @@ import com.energy_community_project.percentage_service.entity.HourlyUsageEntity;
 import com.energy_community_project.percentage_service.repository.CurrentPercentageRepository;
 import com.energy_community_project.percentage_service.repository.HourlyUsageRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -21,7 +20,6 @@ public class CurrentPercentageCalculationService {
         this.currentPercentageRepository = currentPercentageRepository;
     }
 
-    @Transactional
     public void updateCurrentPercentage(LocalDateTime hour) {
         HourlyUsageEntity hourlyUsage = hourlyUsageRepository.findById(hour).orElse(null);
         if (hourlyUsage == null) {

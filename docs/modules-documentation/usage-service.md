@@ -16,15 +16,13 @@ It consumes producer/user messages from RabbitMQ, aggregates them into hourly us
 | Persistence | Spring Data JPA, Hibernate |
 | Database | PostgreSQL at runtime, H2 in tests |
 | Migration | Flyway |
-| Transactions | Spring `@Transactional` |
 | Tests | JUnit 5, Mockito, AssertJ, Spring Data JPA tests |
 
 ## Main Components
 
 | Class / Package | Responsibility |
 |---|---|
-| `UsageServiceApplication` | Spring Boot entry point. |
-| `config/RabbitMqConfig` | Declares durable queues and AMQP JSON converter. |
+| `UsageServiceApplication` | Spring Boot entry point. Declares the durable queues and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
 | `listener/EnergyMessageListener` | RabbitMQ boundary. Receives `EnergyMessage` from `energy_queue` and delegates to service logic. |
 | `messaging/EnergyMessage` | Service-local DTO consumed from Producer/User JSON. |
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO published after usage changes. |

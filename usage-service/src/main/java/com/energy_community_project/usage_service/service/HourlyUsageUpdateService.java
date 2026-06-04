@@ -7,7 +7,6 @@ import com.energy_community_project.usage_service.repository.HourlyUsageReposito
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -26,7 +25,6 @@ public class HourlyUsageUpdateService {
         this.updateQueueName = updateQueueName;
     }
 
-    @Transactional
     public void handleEnergyMessage(EnergyMessage message) {
         LocalDateTime hour = toHour(message.getDatetime());
         HourlyUsageEntity hourlyUsage = hourlyUsageRepository.findById(hour)

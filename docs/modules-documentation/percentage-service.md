@@ -16,15 +16,13 @@ It consumes usage update messages from RabbitMQ, reads the matching hourly usage
 | Persistence | Spring Data JPA, Hibernate |
 | Database | PostgreSQL at runtime, H2 in tests |
 | Migration | Flyway |
-| Transactions | Spring `@Transactional` |
 | Tests | JUnit 5, Mockito, AssertJ, Spring Data JPA tests |
 
 ## Main Components
 
 | Class / Package | Responsibility |
 |---|---|
-| `PercentageServiceApplication` | Spring Boot entry point. |
-| `config/RabbitMqConfig` | Declares update queue and AMQP JSON converter. |
+| `PercentageServiceApplication` | Spring Boot entry point. Declares the update queue and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
 | `listener/HourlyUsageUpdatedListener` | RabbitMQ boundary. Receives `HourlyUsageUpdatedMessage`. |
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO consumed from Usage Service JSON. |
 | `entity/HourlyUsageEntity` | Read model for table `hourly_usage`. |
