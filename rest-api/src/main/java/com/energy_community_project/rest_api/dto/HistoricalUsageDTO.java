@@ -1,4 +1,4 @@
-package com.energy_community_project.rest_api;
+package com.energy_community_project.rest_api.dto;
 
 /** Response payload for {@code GET /energy/historical}: one aggregated hourly-usage row. */
 public class HistoricalUsageDTO {

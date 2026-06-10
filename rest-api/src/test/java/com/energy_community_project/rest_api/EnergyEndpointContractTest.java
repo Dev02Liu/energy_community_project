@@ -2,6 +2,8 @@ package com.energy_community_project.rest_api;
 
 import com.energy_community_project.rest_api.entity.CurrentPercentageEntity;
 import com.energy_community_project.rest_api.entity.HourlyUsageEntity;
+import com.energy_community_project.rest_api.repository.CurrentPercentageRepository;
+import com.energy_community_project.rest_api.repository.HourlyUsageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

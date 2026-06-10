@@ -1,4 +1,4 @@
-package com.energy_community_project.rest_api;
+package com.energy_community_project.rest_api.dto;
 
 /** Response payload for {@code GET /energy/current}: latest calculated percentages. */
 public class CurrentPercentageDTO {

@@ -1,6 +1,7 @@
 package com.energy_community_project.rest_api;
 
 import com.energy_community_project.rest_api.entity.CurrentPercentageEntity;
+import com.energy_community_project.rest_api.repository.CurrentPercentageRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,4 +1,4 @@
-package com.energy_community_project.rest_api;
+package com.energy_community_project.rest_api.repository;
 
 import com.energy_community_project.rest_api.entity.HourlyUsageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

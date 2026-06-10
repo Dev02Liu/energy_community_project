@@ -1,6 +1,10 @@
-package com.energy_community_project.rest_api;
+package com.energy_community_project.rest_api.controller;
 
+import com.energy_community_project.rest_api.dto.CurrentPercentageDTO;
+import com.energy_community_project.rest_api.dto.HistoricalUsageDTO;
 import com.energy_community_project.rest_api.entity.CurrentPercentageEntity;
+import com.energy_community_project.rest_api.repository.CurrentPercentageRepository;
+import com.energy_community_project.rest_api.repository.HourlyUsageRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
