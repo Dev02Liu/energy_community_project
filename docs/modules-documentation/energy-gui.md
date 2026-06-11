@@ -16,7 +16,6 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 | HTTP | Java `HttpClient` |
 | JSON | FasterXML Jackson `ObjectMapper` |
 | Build | Maven, JavaFX Maven plugin |
-| Tests | JUnit 5, AssertJ |
 
 ## Main Components
 
@@ -122,7 +121,7 @@ cd energy-gui
 
 ```powershell
 cd ..
-.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test
+.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml clean package
 ```
 
 Manual GUI check:

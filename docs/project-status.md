@@ -43,15 +43,15 @@ JavaFX GUI -> REST API only
 | Six separate applications | Covered by module structure and README component table. |
 | Independent startup as 0-point risk | Covered by README start commands and `docs/final-readiness-check.md`. |
 | Own commits per person | Verified via `git shortlog -sn` (the final checklists document this check); naming members is done in the submission text, not a README table. |
-| Correct Usage/Percentage calculations | Covered by focused unit tests and an end-to-end check against the spec example. |
-| Hourly aggregation | Implemented and tested. |
+| Correct Usage/Percentage calculations | Verified end-to-end against the spec example via the smoke-test runbook. |
+| Hourly aggregation | Implemented and verified via the smoke test. |
 | Weather-dependent Producer | Implemented with Open-Meteo solar radiation. |
-| Time-of-day-dependent User | Implemented and tested. |
+| Time-of-day-dependent User | Implemented and verified via the smoke test. |
 | Usage Service central flow | Consumes producer/user messages, writes DB, publishes update. |
 | Percentage after update message | Consumes `percentage_update_queue`; no direct service call. |
 | No Grid message | Grid usage is calculated in Usage Service. |
-| Message order matters | User-before-producer behavior is tested and documented. |
-| REST + UI required | Implemented and tested/buildable. |
+| Message order matters | User-before-producer behavior is documented and verified via the smoke test. |
+| REST + UI required | Implemented and independently buildable. |
 | Presentation explainability | README and final checklist include explanation prompts. |
 
 ## Known Limitations

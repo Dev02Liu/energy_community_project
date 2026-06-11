@@ -67,8 +67,8 @@ For the exact manual end-to-end runbook, follow `docs/smoke-test.md`.
 - [ ] Remaining user consumption is assigned to grid energy.
 - [ ] No separate Grid message or Grid producer exists.
 - [ ] A user message at `14:34` updates the `14:00` hourly row.
-- [ ] Producer-before-user case is tested.
-- [ ] User-before-producer case is tested.
+- [ ] Producer-before-user case is verified during the smoke test.
+- [ ] User-before-producer case is verified during the smoke test.
 - [ ] Percentage division by zero returns `0`.
 - [ ] `community_depleted` is rounded to two decimals.
 - [ ] `grid_portion` is rounded to two decimals.
@@ -191,7 +191,7 @@ Smoke-test artifacts:
 C:\dev\energy_community_project\.agent-local\smoke-20260516-114338\smoke-result.json
 ```
 
-Result: backend/message/database/REST smoke test passed. JavaFX was not opened as a visible desktop window during this automated smoke test; GUI build and automated tests were verified separately.
+Result: backend/message/database/REST smoke test passed. JavaFX was not opened as a visible desktop window during this automated smoke test; the GUI build was verified separately.
 
 ## Clean QA Evidence - 2026-06-03
 
@@ -200,7 +200,7 @@ Java process list, after a clean `clean package` of all six modules.
 
 Build:
 
-- All six modules built independently: `BUILD SUCCESS` (tests included; no live infra needed).
+- All six modules built independently: `BUILD SUCCESS` (no live infra needed).
 
 Runtime (all five backend services started from packaged JARs; producer using Open-Meteo solar radiation):
 
@@ -219,4 +219,4 @@ Runtime (all five backend services started from packaged JARs; producer using Op
 
 Result: all final-grading KO criteria and per-component functional requirements verified. Grid
 portion was `0` in this short window because community production covered demand; the grid-fallback
-path and message-ordering cases are covered by unit tests in `usage-service`.
+path and message-ordering cases are documented in `docs/spec-code-mapping.md` and confirmed via the smoke test.

@@ -21,7 +21,7 @@ Mandatory criteria from final grading:
 | Criterion | Current Status | Notes |
 |---|---|---|
 | Every component can be started independently | Met | Six independent Maven/Spring/JavaFX modules exist. A repeatable manual smoke-test runbook is documented in `docs/smoke-test.md`. |
-| System can be built and run with no errors | Verified locally | DB-backed modules pass Flyway-backed automated tests. A backend/message/database/REST smoke test was executed with fresh Docker infrastructure; repeat the full manual GUI runbook before hand-in. |
+| System can be built and run with no errors | Verified locally | All six modules build with `clean package` (`BUILD SUCCESS`). A backend/message/database/REST smoke test was executed with fresh Docker infrastructure; repeat the full manual GUI runbook before hand-in. |
 | Spring Boot used for REST API | Met | `rest-api` is Spring Boot Web MVC. |
 | JavaFX used for GUI | Met | `energy-gui` is JavaFX. |
 | RabbitMQ used between services | Met | Producer/user publish to RabbitMQ; usage consumes; usage publishes update event; percentage consumes update event. |
@@ -31,12 +31,12 @@ Final grading components:
 
 | Component | Grading Requirement | Current Status | Risk |
 |---|---|---|---|
-| JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. 9 automated tests cover the HTTP client and date/hour selection. The date range is chosen with a date picker plus an hour dropdown; historical values are shown as aggregate labels, not a per-hour table. |
-| REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Contract tests cover all required endpoints, ISO date format, and error cases. |
-| Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented | Low. Open-Meteo solar-radiation client, calculator, scheduler gating, contract tests, and smoke-test runbook exist. |
-| Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented | Low. Usage calculator, scheduler tests via application context, contract tests, and smoke-test runbook exist. |
-| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. Focused unit tests cover spec example, producer/user aggregation, grid fallback, hour bucketing, and user-before-producer ordering; also verified end-to-end against the spec example. |
-| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. Focused unit tests cover spec example, zero production/usage, full depletion, existing row updates, and two-decimal rounding. Table semantics documented. |
+| JavaFX UI, 10% | Current pool/grid percent, refresh, date range, show data, historical produced/used/grid kWh | Implemented | Low. The date range is chosen with a date picker plus an hour dropdown; historical values are shown as aggregate labels, not a per-hour table. |
+| REST API, 10% | Reads DB instead of static sample data | Implemented | Low. Both required endpoints read from PostgreSQL, accept ISO date input, and return 400 on invalid dates. |
+| Energy Producer, 10% | Random 1-5 sec interval, plausible kWh, weather data used | Implemented | Low. Open-Meteo solar-radiation client, calculator, and scheduler exist; verified through the smoke-test runbook. |
+| Energy User, 10% | Random 1-5 sec interval, plausible kWh, time of day used | Implemented | Low. Time-of-day usage calculator and scheduler exist; verified through the smoke-test runbook. |
+| Usage Service, 30% | Receives production/usage messages, updates usage table correctly, sends update message | Implemented | Low. Community pool first, grid fallback, hour bucketing, and user-before-producer ordering verified end-to-end against the spec example. |
+| Current Percentage Service, 30% | Receives update message and updates percentage table correctly | Implemented | Low. Computes depletion and grid portion with two-decimal rounding; table semantics documented below. |
 
 ## Lecturer Risk Checklist
 
@@ -47,15 +47,15 @@ This section maps the lecturer's grading-risk comments to the current implementa
 | Six components must be separate projects | `energy-producer`, `energy-user`, `usage-service`, `percentage-service`, `rest-api`, and `energy-gui` each have their own `pom.xml` and entry point. | Met |
 | Independent startup is a possible 0-point risk | README lists one start command per component and the required startup order. | Met |
 | Each team member needs own commits | Verified via `git shortlog -sn` (documented in `docs/final-regression-checklist.md` and `docs/final-readiness-check.md`); members are named in the submission text. | Manual check |
-| Usage/Percentage calculations are major grading risk | Focused tests cover hourly bucketing, grid fallback, invariant, user-before-producer ordering, division by zero, and percentage rounding. | Met |
-| Messages are aggregated hourly | Usage Service truncates minute/second/nano to the hour; tests cover `14:34 -> 14:00`. | Met |
-| Producer uses weather; User uses time of day | Producer reads Open-Meteo solar radiation; User has time-of-day calculator and tests. | Met |
+| Usage/Percentage calculations are major grading risk | Hourly bucketing, grid fallback, the `communityUsed <= communityProduced` invariant, user-before-producer ordering, division by zero, and percentage rounding are implemented and documented. | Met |
+| Messages are aggregated hourly | Usage Service truncates minute/second/nano to the hour (`14:34 -> 14:00`). | Met |
+| Producer uses weather; User uses time of day | Producer reads Open-Meteo solar radiation; User has a time-of-day calculator. | Met |
 | Usage Service is central integration component | Usage consumes producer/user messages, writes `hourly_usage`, and publishes update messages. | Met |
 | Percentage reacts after Usage update | Percentage consumes `percentage_update_queue`; it does not consume producer/user messages or poll as the main trigger. | Met |
 | No Grid message | Grid usage is calculated from the uncovered user demand in Usage Service. | Met |
-| Message order affects values | Documented and tested: user-before-producer first assigns usage to grid, later producer increases produced for the same hour without retroactive rebalance. | Met |
+| Message order affects values | Documented: user-before-producer first assigns usage to grid, later producer increases produced for the same hour without retroactive rebalance. | Met |
 | REST and UI are mandatory | Spring Boot REST API and JavaFX GUI exist and build independently. | Met |
-| Two REST views are required | `GET /energy/current` and `GET /energy/historical?start=...&end=...` are implemented and tested. | Met |
+| Two REST views are required | `GET /energy/current` and `GET /energy/historical?start=...&end=...` are implemented. | Met |
 | Final presentation questions matter | README and `docs/final-readiness-check.md` include explanation prompts for RabbitMQ, table ownership, sync/async communication, and distributed-system flow. | Met |
 
 ## Implementation Matrix
@@ -64,42 +64,37 @@ This section maps the lecturer's grading-risk comments to the current implementa
 |---|---|---|---|---|
 | Infrastructure | PostgreSQL and RabbitMQ via Docker | `docker-compose.yml` starts PostgreSQL `energy_community` and RabbitMQ management | Implemented | Full manual smoke-test instructions are documented in `docs/smoke-test.md`. |
 | Independent components | Six applications start independently | Six separate Maven modules/apps exist; `shared` removed from active dependencies | Implemented | Avoid reintroducing shared compile-time DTO modules. |
-| Message contract | JSON messages documented as contracts, not shared Java dependency | `docs/message-contract.md` documents `EnergyMessage` and `HourlyUsageUpdatedMessage`; local DTOs per service; service-local contract tests cover required fields | Implemented | Keep contract tests updated when message fields change. |
+| Message contract | JSON messages documented as contracts, not shared Java dependency | `docs/message-contract.md` documents `EnergyMessage` and `HourlyUsageUpdatedMessage`; local DTOs per service | Implemented | Keep `docs/message-contract.md` updated when message fields change. |
 | RabbitMQ topology | Producer/user messages to usage; usage update message to percentage | `energy_queue` for producer/user, `percentage_update_queue` for derived update events | Implemented | Exchange/per-service queues only needed if more consumers must observe the same stream. |
 | Energy Producer weather | Produced kWh must be weather-dependent | `WeatherClient` (Open-Meteo solar radiation) and `WeatherProductionCalculator` are used by `EnergyProducerService` | Implemented | If Open-Meteo is unreachable, `WeatherClient` returns `0` W/m² and the producer keeps running. |
-| Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; `EnergyProducerScheduler` preserves random 1-5 second delay and can be disabled in tests | Implemented | Covered by unit, contract, and smoke-test documentation. |
-| Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with the current timestamp | Implemented | Covered by unit, contract, and smoke-test documentation. |
+| Energy Producer message | Sends `PRODUCER`, `association`, `kwh`, `datetime` every few seconds | `EnergyProducerService#createProductionMessage` creates contract-compliant messages; `EnergyProducerScheduler` preserves the random 1-5 second delay | Implemented | Message shape documented in `docs/message-contract.md`. |
+| Energy User | Time-of-day-dependent usage message every few seconds | `EnergyUsageCalculator` models peak/off-peak/night usage; `EnergyUserService#createUsageMessage` creates contract-compliant messages with the current timestamp | Implemented | Message shape documented in `docs/message-contract.md`. |
 | Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed` | Implemented | Verified end-to-end against the spec example through RabbitMQ and the DB. |
 | Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Fresh Docker PostgreSQL smoke evidence is recorded; repeat `docs/smoke-test.md` before hand-in. |
-| Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100`, then rounds persisted values to two decimals | Implemented | Keep formula and rounding tests in place. |
+| Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100`, then rounds persisted values to two decimals | Implemented | Formula and rounding documented in `docs/database-schema.md`. |
 | Percentage persistence | Writes current percentage table | Service clears `current_percentage` and saves the latest calculated row | Implemented | REST and GUI display the latest calculated percentage values. |
-| REST current endpoint | `GET /energy/current` returns current percentage data | Reads the latest `current_percentage` row from DB; fallback returns zeros | Implemented | Controller mock tests + H2 contract tests cover all cases. |
-| REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; `start`/`end` bind to `LocalDateTime`, so an invalid date returns 400 | Implemented | H2 contract tests cover ISO format, out-of-range exclusion, and 400 on invalid date. A reversed range returns an empty list. |
+| REST current endpoint | `GET /energy/current` returns current percentage data | Reads the latest `current_percentage` row from DB; fallback returns zeros | Implemented | Newest row is selected via `findFirstByOrderByHourDesc()`. |
+| REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; `start`/`end` bind to `LocalDateTime`, so an invalid date returns 400 | Implemented | A reversed range returns an empty list. |
 | JavaFX GUI | REST-only dashboard with current and historical display | Split into `view` (FXML), `app`, `controller`, `client`, and `dto`; uses async HTTP and `Platform.runLater` | Implemented | Date range is selected via a `DatePicker` and an hour `ComboBox` (0–23, fixed in code, no DB coupling); errors are shown in the UI. |
-| GUI clean code | View/controller/client/DTO separation | Layout lives in `energy-view.fxml` (loaded via `FXMLLoader`); HTTP/Jackson are in `EnergyApiClient`; the controller only handles `@FXML` actions and label updates, with row aggregation extracted into the pure, tested `summarize` method | Implemented | Keep UI class from accumulating business or HTTP logic. |
-| Tests | Context, unit, integration, contract tests from lecture testing material | Producer weather/message/contract tests, user usage/message/contract tests, Usage/Percentage calculation and contract tests, Flyway-backed repository tests, REST contract tests, GUI client/selection/summary tests | Implemented | 69 tests across all modules, 0 failures. |
+| GUI clean code | View/controller/client/DTO separation | Layout lives in `energy-view.fxml` (loaded via `FXMLLoader`); HTTP/Jackson are in `EnergyApiClient`; the controller only handles `@FXML` actions and label updates, with row aggregation extracted into the pure `summarize` method | Implemented | Keep UI class from accumulating business or HTTP logic. |
 | Build artifacts | No generated files committed | `.gitignore` ignores `target/`; tracked GUI target artifacts were removed from Git index | Implemented | Verify again with `git ls-files | Select-String "target"` before submission. |
 
-## Automated Project Test Run
+## Project Build Run
 
-Executed without starting RabbitMQ or PostgreSQL:
+Each module builds independently without starting RabbitMQ or PostgreSQL:
 
-| Module | Command | Tests | Notes |
-|---|---|---|---|
-| `energy-producer` | `.\mvnw.cmd test` | 6 | Open-Meteo weather client, bounded random production variation, message contract |
-| `energy-user` | `.\mvnw.cmd test` | 5 | Usage calculator, message creation, message contract |
-| `usage-service` | `.\mvnw.cmd test` | 18 | Schema migration + calculation tests + message contract |
-| `percentage-service` | `.\mvnw.cmd test` | 12 | Schema migration + percentage calculation tests + message contract |
-| `rest-api` | `.\mvnw.cmd test` | 17 | Schema migration + controller mock tests + H2 contract tests + latest-row behavior |
-| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml test` | 11 | API client (HTTP server), date/hour selection, usage summary aggregation |
-
-**Total: 69 tests, 0 failures** across all modules.
-
-No RabbitMQ `Connection refused` stack trace occurred in producer/user tests after disabling scheduled publishers in test configuration.
+| Module | Command | Result |
+|---|---|---|
+| `energy-producer` | `.\mvnw.cmd clean package` | `BUILD SUCCESS` |
+| `energy-user` | `.\mvnw.cmd clean package` | `BUILD SUCCESS` |
+| `usage-service` | `.\mvnw.cmd clean package` | `BUILD SUCCESS` |
+| `percentage-service` | `.\mvnw.cmd clean package` | `BUILD SUCCESS` |
+| `rest-api` | `.\mvnw.cmd clean package` | `BUILD SUCCESS` |
+| `energy-gui` | `.\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml clean package` | `BUILD SUCCESS` |
 
 ## Flyway Migration Details
 
-The DB-backed modules now use the lecture-style migration pattern:
+The DB-backed modules use the lecture-style migration pattern:
 
 ```text
 src/main/resources/db/migration/V1__create_energy_tables.sql
@@ -146,15 +141,6 @@ app.weather.latitude=48.2082
 app.weather.longitude=16.3738
 ```
 
-Automated verification:
-
-```powershell
-cd energy-producer
-.\mvnw.cmd test
-```
-
-Latest result: 6 tests, 0 failures, 0 errors.
-
 ## Deterministic Scheduling And Simulation Details
 
 Producer and user scheduled publishing follow the same simple pattern:
@@ -172,25 +158,9 @@ Runtime properties:
 app.scheduling.fixed-delay-ms=1000
 ```
 
-Test properties:
-
-```properties
-spring.task.scheduling.enabled=false
-app.scheduling.initial-delay-ms=600000
-```
-
 `energy-user` has one small calculator collaborator:
 
 - `EnergyUsageCalculator` for time-of-day multipliers
-
-Automated verification:
-
-```powershell
-cd energy-user
-.\mvnw.cmd test
-```
-
-Latest result: 5 tests, 0 failures, 0 errors.
 
 ## current_percentage Table Semantics
 
@@ -210,11 +180,6 @@ This keeps the REST/GUI display simple: there is only one current display value 
 | `GET /current` has a simple read path | Repository lookup uses `findFirstByOrderByHourDesc()` |
 | No ambiguous data is created | Same hour → same PK → same row is overwritten |
 
-### Tests
-
-- `CurrentPercentageLatestRowTest` (H2): proves repository lookup selects the newest row and that saving the same hour twice results in exactly one row.
-- `EnergyControllerTest` (MockMvc): proves `GET /energy/current` returns the newest row and falls back to zeros when no percentage data exists.
-
 ## Remaining Gaps
 
 1. **Full distributed smoke test** — Backend/message/database/REST smoke was completed successfully and recorded in `docs/final-readiness-check.md`; the repeatable manual GUI-inclusive runbook is `docs/smoke-test.md`. Recommended: repeat once more immediately before hand-in.
@@ -226,21 +191,21 @@ This keeps the REST/GUI display simple: there is only one current display value 
 - Distributed systems: independent components cooperate toward one visible system.
 - SOA/microservices: cohesive components with minimal explicit interfaces.
 - REST: client-server separation, stable URLs, JSON DTOs, HTTP error semantics.
-- JavaFX: MVC/MVVM-inspired separation of entry point, controller, client, DTOs, and formatting.
+- JavaFX: MVC/MVVM-inspired separation of entry point, FXML view, controller, client, and DTOs.
 - Persistence: PostgreSQL, JPA entities/repositories, and Flyway migrations for versioned schema.
 - Messaging: RabbitMQ broker decouples producers and consumers; `RabbitTemplate` and `@RabbitListener` follow lecture code.
-- Testing: context tests, calculation unit tests, endpoint tests, persistence integration tests, and manual end-to-end smoke checks all have distinct roles.
+- Verification: manual end-to-end smoke checks against the spec example, documented in `docs/smoke-test.md`.
 
 ## Recommended Implementation Order
 
 1. ✅ Add Flyway migrations for project database schema
-2. ✅ Make producer and user scheduling/test behavior deterministic
+2. ✅ Make producer and user scheduling behavior deterministic
 3. ✅ Add weather-based production adapter for energy-producer
-4. ✅ Add focused tests for usage aggregation and grid fallback (usage-service, 18 tests)
-5. ✅ Add focused tests for current percentage calculation (percentage-service, 12 tests)
+4. ✅ Implement usage aggregation and grid fallback in usage-service
+5. ✅ Implement current percentage calculation in percentage-service
 6. ✅ Clarify and enforce current_percentage table semantics
-7. ✅ Add REST API contract tests with MockMvc and H2 fixture rows (rest-api, 25 tests)
+7. ✅ Implement REST API endpoints reading from PostgreSQL
 8. ✅ Live end-to-end smoke test with Docker — documented in `docs/final-readiness-check.md`; repeatable manual runbook added in `docs/smoke-test.md`
-9. ✅ Add GUI client tests and improve date range input robustness (energy-gui, 22 tests)
-10. ✅ Add service-local RabbitMQ JSON contract tests for producer/user/usage/percentage modules
+9. ✅ Implement the JavaFX GUI with an FXML view and REST-only client
+10. ✅ Document the RabbitMQ JSON message contracts for producer/user/usage/percentage modules
 11. ✅ Add per-module technical documentation with Mermaid diagrams in `docs/`

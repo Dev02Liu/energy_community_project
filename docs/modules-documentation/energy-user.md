@@ -15,7 +15,6 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 | Messaging | Spring AMQP, `RabbitTemplate`, JSON converter |
 | Scheduling | Spring `@Scheduled` |
 | Consumption logic | Time-of-day multiplier plus random variation |
-| Tests | JUnit 5, AssertJ, Mockito, Spring Boot test support |
 
 ## Main Components
 
@@ -78,7 +77,7 @@ Published queue: `energy_queue`
 }
 ```
 
-The contract is documented in `docs/message-contract.md` and protected by `EnergyMessageContractTest`.
+The contract is documented in `docs/message-contract.md`.
 
 ## Start Command
 
@@ -91,10 +90,10 @@ cd energy-user
 
 ```powershell
 cd energy-user
-.\mvnw.cmd test
+.\mvnw.cmd clean package
 ```
 
-Important checks:
+Behavior to confirm during the smoke test (`docs/smoke-test.md`):
 
 - Message has `type=USER`.
 - Message has `association=COMMUNITY`.

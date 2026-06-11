@@ -4,7 +4,7 @@ Distributed Systems course project for simulating an energy community. The syste
 
 ## Final Submission Summary
 
-This project uses **Java 25** and **Spring Boot 4.0.3**. The project was built and tested with this stack. If another machine is used for the final demo, install Java 25 or adapt the project to Java 21 LTS before running the Maven commands.
+This project uses **Java 25** and **Spring Boot 4.0.3**. The project was built with this stack. If another machine is used for the final demo, install Java 25 or adapt the project to Java 21 LTS before running the Maven commands.
 
 The grading-critical architecture is:
 
@@ -78,7 +78,7 @@ The backend services use RabbitMQ messages because production, consumption, aggr
 
 | Tool | Required | Purpose |
 |---|---|---|
-| JDK | Java 25 tested | Build and run all Java modules. |
+| JDK | Java 25 | Build and run all Java modules. |
 | Maven Wrapper | included in service modules | Build/run without local Maven installation. |
 | Docker Desktop | 4.x or newer | Runs PostgreSQL and RabbitMQ. |
 | PostgreSQL | via Docker Compose | Shared persistence. |
@@ -142,7 +142,7 @@ cd ..
 .\energy-producer\mvnw.cmd -f .\energy-gui\pom.xml clean package
 ```
 
-The tests are isolated. They use mocks or H2 where needed and do not require a live RabbitMQ or PostgreSQL instance.
+Each module builds independently with `clean package` and needs no live RabbitMQ or PostgreSQL instance to compile and package.
 
 ## Start Order
 

@@ -7,7 +7,7 @@ This guide starts the complete system from scratch and verifies that every compo
 | Tool | Minimum Version | Purpose |
 |---|---|---|
 | Docker Desktop | 4.x | Runs PostgreSQL and RabbitMQ |
-| JDK | 25 | Builds and runs all modules. Tested with Java 25 and Spring Boot 4.0.3. |
+| JDK | 25 | Builds and runs all modules. Built with Java 25 and Spring Boot 4.0.3. |
 | Maven Wrapper | included | No separate Maven install needed for the Spring modules |
 | JavaFX SDK | bundled through Maven | Included in the GUI `pom.xml` |
 

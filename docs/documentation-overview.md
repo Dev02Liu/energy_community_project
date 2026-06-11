@@ -46,7 +46,7 @@ flowchart LR
 | Document | Purpose |
 |---|---|
 | `docs/architecture.md` | Presentation-level component diagram with explicit interfaces. |
-| `docs/message-contract.md` | RabbitMQ topology, JSON payloads, contract tests. |
+| `docs/message-contract.md` | RabbitMQ topology, JSON payloads, contract boundary. |
 | `docs/database-schema.md` | PostgreSQL table mapping and service read/write responsibilities. |
 | `docs/how-to-run.md` | Detailed startup and troubleshooting instructions. |
 | `docs/smoke-test.md` | Repeatable distributed smoke-test runbook. |

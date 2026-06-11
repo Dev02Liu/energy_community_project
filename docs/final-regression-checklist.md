@@ -227,8 +227,6 @@ git shortlog -sn HEAD
 
 These appear during a healthy build/run and do **not** indicate failure:
 
-- [ ] `Mockito is currently self-attaching to enable the inline-mock-maker` /
-      `A Java agent has been loaded dynamically` — test-time Mockito/ByteBuddy notice on Java 25.
 - [ ] `OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes ...` —
       JVM CDS notice; harmless.
 - [ ] Producer `Weather API not reachable, using 0 W/m2` — expected when Open-Meteo is

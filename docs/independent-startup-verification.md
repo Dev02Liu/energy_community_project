@@ -42,11 +42,9 @@ running via `docker compose up -d`.
   `usage_service`, `percentage_service`, `rest_api`, `gui`); no module imports another module's
   classes.
 
-## 2. Independent compilation and tests
+## 2. Independent compilation
 
-Each module was built independently with `clean package` (tests included). Tests use H2 and
-disabled RabbitMQ listeners (`spring.rabbitmq.listener.simple.auto-startup=false`), so they need
-no live infrastructure.
+Each module was built independently with `clean package`. The build needs no live infrastructure.
 
 | Module | `clean package` |
 |---|---|

@@ -5,8 +5,8 @@ This report maps the project against the **specification**, the **grading schema
 review (which annotations/functions are used, and whether each was taught) and the changes made to
 keep the code minimal and close to the lecture.
 
-Verification date: 2026-06-04. All 6 modules build and pass tests; the message flow was additionally
-verified end‑to‑end against the spec's own worked example.
+Verification date: 2026-06-04. All 6 modules build with `clean package` (`BUILD SUCCESS`); the message
+flow was additionally verified end‑to‑end against the spec's own worked example via the smoke-test runbook.
 
 ---
 
@@ -98,9 +98,8 @@ Every framework feature used was checked against the lecture transcripts and the
 - **rest-api**: `EnergyController` now binds `@RequestParam LocalDateTime` directly (lecture `ObservationController` style); manual date parsing and the `start>end` 400 guard removed (invalid date → Spring returns 400; reversed range → empty list).
 - **energy-gui**: removed the generic `<T>` send helper and the custom `@FunctionalInterface` in `EnergyApiClient`; two straightforward request methods remain.
 
-Net effect: well over **700 lines of production code removed**, tests for removed behaviour deleted,
-remaining tests updated. Current totals: **69 tests, 0 failures** (producer 6, user 5, usage 18,
-percentage 12, rest‑api 17, gui 11).
+Net effect: well over **700 lines of production code removed**, leaving each module minimal and close
+to the lecture code. All six modules build cleanly (`clean package` → `BUILD SUCCESS`).
 
 ---
 

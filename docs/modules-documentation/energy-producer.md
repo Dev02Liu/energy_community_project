@@ -16,7 +16,6 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 | Scheduling | Spring `@Scheduled` |
 | Weather data | Open-Meteo current solar radiation |
 | HTTP client | Java built-in `HttpClient` inside `WeatherClient` |
-| Tests | JUnit 5, AssertJ, Mockito, Spring Boot test support |
 
 ## Main Components
 
@@ -73,7 +72,7 @@ Published queue: `energy_queue`
 }
 ```
 
-The contract is documented in `docs/message-contract.md` and protected by `EnergyMessageContractTest`.
+The contract is documented in `docs/message-contract.md`.
 
 ## Start Command
 
@@ -88,10 +87,10 @@ If the Open-Meteo API cannot be reached, `WeatherClient` returns `0` W/m² and t
 
 ```powershell
 cd energy-producer
-.\mvnw.cmd test
+.\mvnw.cmd clean package
 ```
 
-Important checks:
+Behavior to confirm during the smoke test (`docs/smoke-test.md`):
 
 - Message has `type=PRODUCER`.
 - Message has `association=COMMUNITY`.

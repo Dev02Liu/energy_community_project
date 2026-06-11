@@ -14,9 +14,8 @@ It consumes producer/user messages from RabbitMQ, aggregates them into hourly us
 | Framework | Spring Boot 4.0.3 |
 | Messaging | Spring AMQP, `@RabbitListener`, `RabbitTemplate`, JSON converter |
 | Persistence | Spring Data JPA, Hibernate |
-| Database | PostgreSQL at runtime, H2 in tests |
+| Database | PostgreSQL at runtime |
 | Migration | Flyway |
-| Tests | JUnit 5, Mockito, AssertJ, Spring Data JPA tests |
 
 ## Main Components
 
@@ -132,14 +131,13 @@ cd usage-service
 
 ```powershell
 cd usage-service
-.\mvnw.cmd test
+.\mvnw.cmd clean package
 ```
 
-Important checks:
+Behavior to confirm during the smoke test (`docs/smoke-test.md`):
 
 - Consumes `energy_queue`.
 - Writes `hourly_usage`.
 - Publishes `percentage_update_queue` after the database commit.
 - Preserves `communityUsed <= communityProduced`.
 - Handles user-before-producer order according to message order.
-- Contract tests deserialize documented Producer/User JSON.

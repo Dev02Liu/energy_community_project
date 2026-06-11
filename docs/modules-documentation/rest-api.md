@@ -14,10 +14,9 @@ It reads DB-backed data from PostgreSQL and does not calculate or write the core
 | Framework | Spring Boot 4.0.3 |
 | REST | Spring Web MVC |
 | Persistence | Spring Data JPA, Hibernate |
-| Database | PostgreSQL at runtime, H2 in tests |
+| Database | PostgreSQL at runtime |
 | Migration | Flyway |
 | JSON | Spring/Jackson HTTP serialization |
-| Tests | JUnit 5, Spring Web MVC tests, Spring Data JPA tests |
 
 ## Main Components
 
@@ -109,7 +108,7 @@ cd rest-api
 
 ```powershell
 cd rest-api
-.\mvnw.cmd test
+.\mvnw.cmd clean package
 ```
 
 Manual checks:

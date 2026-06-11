@@ -14,9 +14,8 @@ It consumes usage update messages from RabbitMQ, reads the matching hourly usage
 | Framework | Spring Boot 4.0.3 |
 | Messaging | Spring AMQP, `@RabbitListener`, JSON converter |
 | Persistence | Spring Data JPA, Hibernate |
-| Database | PostgreSQL at runtime, H2 in tests |
+| Database | PostgreSQL at runtime |
 | Migration | Flyway |
-| Tests | JUnit 5, Mockito, AssertJ, Spring Data JPA tests |
 
 ## Main Components
 
@@ -106,10 +105,10 @@ cd percentage-service
 
 ```powershell
 cd percentage-service
-.\mvnw.cmd test
+.\mvnw.cmd clean package
 ```
 
-Important checks:
+Behavior to confirm during the smoke test (`docs/smoke-test.md`):
 
 - Consumes `percentage_update_queue`.
 - Does not consume Producer/User messages.
@@ -118,4 +117,3 @@ Important checks:
 - Avoids division by zero.
 - Rounds persisted values to two decimals.
 - Clears `current_percentage` before saving the latest calculated row.
-- Contract test deserializes documented update JSON.
