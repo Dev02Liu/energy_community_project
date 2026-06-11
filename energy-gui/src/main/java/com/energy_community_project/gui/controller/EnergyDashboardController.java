@@ -4,15 +4,10 @@ import com.energy_community_project.gui.client.EnergyApiClient;
 import com.energy_community_project.gui.dto.CurrentPercentageDTO;
 import com.energy_community_project.gui.dto.HistoricalUsageDTO;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.scene.Parent;
-import javafx.scene.control.Button;
+import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -29,68 +24,48 @@ public class EnergyDashboardController {
     private final DecimalFormat numberFormat =
             new DecimalFormat("0.#####", new DecimalFormatSymbols(Locale.ENGLISH));
 
-    private Label communityPoolLabel;
-    private Label gridPortionLabel;
-    private DatePicker startDate;
-    private ComboBox<String> startHour;
-    private DatePicker endDate;
-    private ComboBox<String> endHour;
-    private Label communityProducedLabel;
-    private Label communityUsedLabel;
-    private Label gridUsedLabel;
+    @FXML private Label communityPoolLabel;
+    @FXML private Label gridPortionLabel;
+    @FXML private DatePicker startDate;
+    @FXML private ComboBox<String> startHour;
+    @FXML private DatePicker endDate;
+    @FXML private ComboBox<String> endHour;
+    @FXML private Label communityProducedLabel;
+    @FXML private Label communityUsedLabel;
+    @FXML private Label gridUsedLabel;
 
     public EnergyDashboardController(EnergyApiClient apiClient) {
         this.apiClient = apiClient;
     }
 
-    public Parent createView() {
-        communityPoolLabel = new Label("Community Pool: -% used");
-        gridPortionLabel = new Label("Grid Portion: -%");
-
-        Button refreshButton = new Button("refresh");
-        refreshButton.setOnAction(ignored -> loadCurrentPercentages());
+    // Called by the FXMLLoader once the @FXML fields are injected.
+    @FXML
+    private void initialize() {
+        fillHours(startHour);
+        fillHours(endHour);
 
         LocalDate today = LocalDate.now();
-        startDate = new DatePicker(today);
-        startHour = hourComboBox("00:00");
-
-        endDate = new DatePicker(today);
-        endHour = hourComboBox(String.format("%02d:00", LocalDateTime.now().getHour()));
-
-        Button showDataButton = new Button("show data");
-        showDataButton.setOnAction(ignored -> loadHistoricalUsage());
-
-        communityProducedLabel = new Label("Community produced: - kWh");
-        communityUsedLabel = new Label("Community used: - kWh");
-        gridUsedLabel = new Label("Grid used: - kWh");
-
-        VBox root = new VBox(10,
-                communityPoolLabel,
-                gridPortionLabel,
-                refreshButton,
-                new Separator(),
-                new Label("Start"),
-                new HBox(8, startDate, startHour),
-                new Label("End"),
-                new HBox(8, endDate, endHour),
-                showDataButton,
-                new Separator(),
-                communityProducedLabel,
-                communityUsedLabel,
-                gridUsedLabel
-        );
-        root.setPadding(new Insets(16));
-        return root;
+        startDate.setValue(today);
+        startHour.setValue("00:00");
+        endDate.setValue(today);
+        endHour.setValue(String.format("%02d:00", LocalDateTime.now().getHour()));
     }
 
-    // Dropdown with the 24 hours of a day (00:00 .. 23:00). The list is fixed in code, not loaded from the database.
-    private ComboBox<String> hourComboBox(String selected) {
-        ComboBox<String> box = new ComboBox<>();
+    // Fills the 24 hours of a day (00:00 .. 23:00). The list is built in code, not loaded from the database.
+    private void fillHours(ComboBox<String> box) {
         for (int hour = 0; hour < 24; hour++) {
             box.getItems().add(String.format("%02d:00", hour));
         }
-        box.setValue(selected);
-        return box;
+    }
+
+    @FXML
+    private void onRefresh() {
+        loadCurrentPercentages();
+    }
+
+    @FXML
+    private void onShowData() {
+        loadHistoricalUsage();
     }
 
     public void loadCurrentPercentages() {
@@ -133,6 +108,17 @@ public class EnergyDashboardController {
         return date.atTime(hour, 0);
     }
 
+    // Sums the hourly rows into the three totals the GUI shows. Pure logic, no JavaFX needed.
+    static UsageSummary summarize(List<HistoricalUsageDTO> entries) {
+        double produced = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityProduced).sum();
+        double used = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityUsed).sum();
+        double gridUsed = entries.stream().mapToDouble(HistoricalUsageDTO::getGridUsed).sum();
+        return new UsageSummary(produced, used, gridUsed);
+    }
+
+    record UsageSummary(double produced, double used, double gridUsed) {
+    }
+
     private void showCurrentPercentage(CurrentPercentageDTO dto) {
         communityPoolLabel.setText("Community Pool: " + format(dto.getCommunityDepleted()) + "% used");
         gridPortionLabel.setText("Grid Portion: " + format(dto.getGridPortion()) + "%");
@@ -144,13 +130,10 @@ public class EnergyDashboardController {
             return;
         }
 
-        double producedSum = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityProduced).sum();
-        double usedSum = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityUsed).sum();
-        double gridUsedSum = entries.stream().mapToDouble(HistoricalUsageDTO::getGridUsed).sum();
-
-        communityProducedLabel.setText("Community produced: " + format(producedSum) + " kWh");
-        communityUsedLabel.setText("Community used: " + format(usedSum) + " kWh");
-        gridUsedLabel.setText("Grid used: " + format(gridUsedSum) + " kWh");
+        UsageSummary summary = summarize(entries);
+        communityProducedLabel.setText("Community produced: " + format(summary.produced()) + " kWh");
+        communityUsedLabel.setText("Community used: " + format(summary.used()) + " kWh");
+        gridUsedLabel.setText("Grid used: " + format(summary.gridUsed()) + " kWh");
     }
 
     private String format(double value) {
