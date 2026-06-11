@@ -12,6 +12,7 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 |---|---|
 | Runtime | Java 25 |
 | UI | JavaFX 25.0.2 |
+| Layout | FXML (`energy-view.fxml`) loaded via `FXMLLoader` |
 | HTTP | Java `HttpClient` |
 | JSON | FasterXML Jackson `ObjectMapper` |
 | Build | Maven, JavaFX Maven plugin |
@@ -22,8 +23,9 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 | Class / Package | Responsibility |
 |---|---|
 | `MainApp` | JavaFX launcher entry point configured in Maven. |
-| `app/EnergyGuiApplication` | Creates the JavaFX scene and wires the controller/client. |
-| `controller/EnergyDashboardController` | Builds UI controls, handles button actions, reads the date/hour selection, updates labels. |
+| `app/EnergyGuiApplication` | Loads `energy-view.fxml` via `FXMLLoader`, injects the client through the controller factory, and shows the scene. |
+| `view/energy-view.fxml` | Declares the JavaFX layout (labels, buttons, `DatePicker`/`ComboBox`). Linked to the controller via `fx:controller`. |
+| `controller/EnergyDashboardController` | Handles `@FXML` button actions, fills the hour dropdowns, combines date/hour, aggregates historical rows (`summarize`), and updates labels. |
 | `client/EnergyApiClient` | HTTP client for REST API calls. |
 | `dto/CurrentPercentageDTO` | DTO for `/energy/current`. |
 | `dto/HistoricalUsageDTO` | DTO for `/energy/historical`. |

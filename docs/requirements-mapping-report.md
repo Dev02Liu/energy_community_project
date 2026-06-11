@@ -99,8 +99,8 @@ Every framework feature used was checked against the lecture transcripts and the
 - **energy-gui**: removed the generic `<T>` send helper and the custom `@FunctionalInterface` in `EnergyApiClient`; two straightforward request methods remain.
 
 Net effect: well over **700 lines of production code removed**, tests for removed behaviour deleted,
-remaining tests updated. Current totals: **67 tests, 0 failures** (producer 6, user 5, usage 18,
-percentage 12, rest‑api 17, gui 9).
+remaining tests updated. Current totals: **69 tests, 0 failures** (producer 6, user 5, usage 18,
+percentage 12, rest‑api 17, gui 11).
 
 ---
 
