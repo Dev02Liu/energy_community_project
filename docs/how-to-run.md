@@ -161,7 +161,7 @@ curl "http://localhost:8080/energy/historical?start=16.05.2026+00%3A00&end=16.05
 Expected error cases:
 
 - Invalid date format -> `400 Bad Request`
-- `start` after `end` -> `400 Bad Request`
+- `start` after `end` -> `200 OK` with an empty array `[]` (the REST API does not reject an inverted range; the `start`-after-`end` guard lives in the JavaFX GUI)
 
 ## Step 7 - Start GUI
 

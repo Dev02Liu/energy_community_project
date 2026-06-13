@@ -280,7 +280,7 @@ Expected shape:
 ]
 ```
 
-Invalid range check:
+Inverted range check (`start` after `end`):
 
 ```powershell
 curl -i "http://localhost:8080/energy/historical?start=2026-05-17T00:00:00&end=2026-05-16T00:00:00"
@@ -289,8 +289,14 @@ curl -i "http://localhost:8080/energy/historical?start=2026-05-17T00:00:00&end=2
 Expected:
 
 ```text
-HTTP/1.1 400
+HTTP/1.1 200
+[]
 ```
+
+The REST API does not reject an inverted range; `findByHourBetween` simply returns no
+rows, so the response is `HTTP 200` with an empty array. The `start`-after-`end` guard
+lives in the JavaFX GUI ([EnergyDashboardController.loadHistoricalUsage](../energy-gui/src/main/java/com/energy_community_project/gui/controller/EnergyDashboardController.java)),
+which blocks the call client-side before it reaches the API.
 
 ## 8. JavaFX GUI Verification
 
