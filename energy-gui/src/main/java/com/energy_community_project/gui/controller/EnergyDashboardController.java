@@ -18,12 +18,15 @@ import java.util.Locale;
 
 public class EnergyDashboardController {
 
+    // Shared error text used when API requests fail or return no displayable data.
     private static final String ERROR_MESSAGE = "Error fetching data";
 
+    // Service dependencies and number formatting used by the dashboard view.
     private final EnergyApiClient apiClient;
     private final DecimalFormat numberFormat =
             new DecimalFormat("0.#####", new DecimalFormatSymbols(Locale.ENGLISH));
 
+    // FXML-bound controls for the current percentage and historical usage sections.
     @FXML private Label communityPoolLabel;
     @FXML private Label gridPortionLabel;
     @FXML private DatePicker startDate;
@@ -34,6 +37,7 @@ public class EnergyDashboardController {
     @FXML private Label communityUsedLabel;
     @FXML private Label gridUsedLabel;
 
+    // Constructor injection keeps HTTP access outside of the controller logic.
     public EnergyDashboardController(EnergyApiClient apiClient) {
         this.apiClient = apiClient;
     }
@@ -51,23 +55,26 @@ public class EnergyDashboardController {
         endHour.setValue(String.format("%02d:00", LocalDateTime.now().getHour()));
     }
 
-    // Fills the 24 hours of a day (00:00 .. 23:00). The list is built in code, not loaded from the database.
+    // Builds the selectable hour values for one full day.
     private void fillHours(ComboBox<String> box) {
         for (int hour = 0; hour < 24; hour++) {
             box.getItems().add(String.format("%02d:00", hour));
         }
     }
 
+    // Handles the refresh button for the current percentage display.
     @FXML
     private void onRefresh() {
         loadCurrentPercentages();
     }
 
+    // Handles the show-data button for the selected historical date range.
     @FXML
     private void onShowData() {
         loadHistoricalUsage();
     }
 
+    // Loads the latest percentage values asynchronously and updates the JavaFX UI thread.
     public void loadCurrentPercentages() {
         apiClient.fetchCurrentPercentage()
                 .thenAccept(dto -> Platform.runLater(() -> showCurrentPercentage(dto)))
@@ -78,6 +85,7 @@ public class EnergyDashboardController {
                 });
     }
 
+    // Validates the selected date range, requests historical usage, and displays the result.
     private void loadHistoricalUsage() {
         LocalDateTime start = toDateTime(startDate.getValue(), startHour.getValue());
         LocalDateTime end = toDateTime(endDate.getValue(), endHour.getValue());
@@ -108,7 +116,7 @@ public class EnergyDashboardController {
         return date.atTime(hour, 0);
     }
 
-    // Sums the hourly rows into the three totals the GUI shows. Pure logic, no JavaFX needed.
+    // Aggregates hourly API rows into the three totals shown by the dashboard.
     static UsageSummary summarize(List<HistoricalUsageDTO> entries) {
         double produced = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityProduced).sum();
         double used = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityUsed).sum();
@@ -116,14 +124,17 @@ public class EnergyDashboardController {
         return new UsageSummary(produced, used, gridUsed);
     }
 
+    // Immutable view model for aggregated historical usage values.
     record UsageSummary(double produced, double used, double gridUsed) {
     }
 
+    // Writes current percentage values into the top dashboard labels.
     private void showCurrentPercentage(CurrentPercentageDTO dto) {
         communityPoolLabel.setText("Community Pool: " + format(dto.getCommunityDepleted()) + "% used");
         gridPortionLabel.setText("Grid Portion: " + format(dto.getGridPortion()) + "%");
     }
 
+    // Writes historical usage totals into the bottom dashboard labels.
     private void showHistoricalUsage(List<HistoricalUsageDTO> entries) {
         if (entries == null || entries.isEmpty()) {
             showHistoricalError(ERROR_MESSAGE);
@@ -136,10 +147,12 @@ public class EnergyDashboardController {
         gridUsedLabel.setText("Grid used: " + format(summary.gridUsed()) + " kWh");
     }
 
+    // Formats numeric values consistently for all GUI labels.
     private String format(double value) {
         return numberFormat.format(value);
     }
 
+    // Displays an error state for the current percentage labels on the JavaFX UI thread.
     private void showCurrentError(String message) {
         Platform.runLater(() -> {
             communityPoolLabel.setText("Community Pool: " + message);
@@ -147,6 +160,7 @@ public class EnergyDashboardController {
         });
     }
 
+    // Displays an error state for the historical usage labels on the JavaFX UI thread.
     private void showHistoricalError(String message) {
         Platform.runLater(() -> {
             communityProducedLabel.setText("Community produced: " + message);

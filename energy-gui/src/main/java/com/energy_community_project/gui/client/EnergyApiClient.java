@@ -18,14 +18,17 @@ import java.util.concurrent.CompletableFuture;
 /** Calls the REST API and parses the JSON responses into DTOs. Requests run asynchronously so the GUI stays responsive. */
 public class EnergyApiClient {
 
+    // REST configuration and reusable JSON/HTTP helpers for all API calls.
     private final String baseUrl;
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Stores the REST API base URL supplied by the GUI application.
     public EnergyApiClient(String baseUrl) {
         this.baseUrl = baseUrl;
     }
 
+    // Requests the latest current percentage values and maps the JSON object to a DTO.
     public CompletableFuture<CurrentPercentageDTO> fetchCurrentPercentage() {
         return get("/energy/current").thenApply(body -> {
             try {
@@ -36,6 +39,7 @@ public class EnergyApiClient {
         });
     }
 
+    // Requests historical usage rows for the selected date range and maps the JSON array to DTOs.
     public CompletableFuture<List<HistoricalUsageDTO>> fetchHistoricalUsage(String start, String end) {
         return get("/energy/historical?start=" + encode(start) + "&end=" + encode(end)).thenApply(body -> {
             try {
@@ -46,6 +50,7 @@ public class EnergyApiClient {
         });
     }
 
+    // Executes an asynchronous HTTP GET request and returns the response body for successful calls.
     private CompletableFuture<String> get(String path) {
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(baseUrl + path)).GET().build();
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -57,6 +62,7 @@ public class EnergyApiClient {
                 });
     }
 
+    // Encodes query parameter values so date-time strings are safe inside the request URL.
     private String encode(String value) {
         return URLEncoder.encode(value.trim(), StandardCharsets.UTF_8);
     }
