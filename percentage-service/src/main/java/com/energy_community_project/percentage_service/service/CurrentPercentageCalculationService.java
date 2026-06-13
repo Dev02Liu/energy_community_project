@@ -1,34 +1,24 @@
 package com.energy_community_project.percentage_service.service;
 
 import com.energy_community_project.percentage_service.entity.CurrentPercentageEntity;
-import com.energy_community_project.percentage_service.entity.HourlyUsageEntity;
+import com.energy_community_project.percentage_service.messaging.HourlyUsageUpdatedMessage;
 import com.energy_community_project.percentage_service.repository.CurrentPercentageRepository;
-import com.energy_community_project.percentage_service.repository.HourlyUsageRepository;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 
 @Service
 public class CurrentPercentageCalculationService {
 
-    private final HourlyUsageRepository hourlyUsageRepository;
     private final CurrentPercentageRepository currentPercentageRepository;
 
-    public CurrentPercentageCalculationService(HourlyUsageRepository hourlyUsageRepository,
-                                               CurrentPercentageRepository currentPercentageRepository) {
-        this.hourlyUsageRepository = hourlyUsageRepository;
+    public CurrentPercentageCalculationService(CurrentPercentageRepository currentPercentageRepository) {
         this.currentPercentageRepository = currentPercentageRepository;
     }
 
-    public void updateCurrentPercentage(LocalDateTime hour) {
-        HourlyUsageEntity hourlyUsage = hourlyUsageRepository.findById(hour).orElse(null);
-        if (hourlyUsage == null) {
-            return;
-        }
-
-        double produced = hourlyUsage.getCommunityProduced();
-        double communityUsed = hourlyUsage.getCommunityUsed();
-        double gridUsed = hourlyUsage.getGridUsed();
+    // Calculates the percentages from the update message only; it never reads the hourly_usage table.
+    public void updateCurrentPercentage(HourlyUsageUpdatedMessage message) {
+        double produced = message.getCommunityProduced();
+        double communityUsed = message.getCommunityUsed();
+        double gridUsed = message.getGridUsed();
         double totalUsed = communityUsed + gridUsed;
 
         double communityDepleted = produced > 0 ? round(communityUsed / produced * 100.0) : 0.0;
@@ -36,7 +26,7 @@ public class CurrentPercentageCalculationService {
 
         // The table only ever holds the current hour, so replace the previous row.
         currentPercentageRepository.deleteAll();
-        currentPercentageRepository.save(new CurrentPercentageEntity(hour, communityDepleted, gridPortion));
+        currentPercentageRepository.save(new CurrentPercentageEntity(message.getHour(), communityDepleted, gridPortion));
     }
 
     private double round(double value) {

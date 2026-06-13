@@ -107,7 +107,7 @@ hourly_usage(hour, community_produced, community_used, grid_used)
 current_percentage(hour, community_depleted, grid_portion)
 ```
 
-The implementation table `hourly_usage` is conceptually equivalent to the project mapping name `energy_usage_hourly`. The shorter name is used consistently across Flyway, JPA, REST, Usage Service, and Percentage Service. Detailed responsibilities are documented in `docs/database-schema.md`.
+The implementation table `hourly_usage` is conceptually equivalent to the project mapping name `energy_usage_hourly`. The shorter name is used consistently across Flyway, JPA, REST, and Usage Service. Detailed responsibilities are documented in `docs/database-schema.md`.
 
 Runtime schema generation is disabled as a source of truth:
 
@@ -168,7 +168,7 @@ app.scheduling.fixed-delay-ms=1000
 
 ### Rationale
 
-The `percentage-service` receives an update event with an hour, reads the matching `hourly_usage` row, calculates the two percentages, clears `current_percentage`, and saves one row for that calculated hour. `GET /energy/current` reads the newest row and returns zeros if no percentage data exists.
+The `percentage-service` receives an update event carrying the hour and the full hourly snapshot (`communityProduced`, `communityUsed`, `gridUsed`), calculates the two percentages from the message, clears `current_percentage`, and saves one row for that calculated hour. It does not read the `hourly_usage` table. `GET /energy/current` reads the newest row and returns zeros if no percentage data exists.
 
 This keeps the REST/GUI display simple: there is only one current display value to explain.
 

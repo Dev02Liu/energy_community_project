@@ -133,7 +133,7 @@ There is no separate Grid message. Grid energy is treated as available fallback 
 
 Queue: `percentage_update_queue`
 
-Purpose: derived event indicating that the hourly usage data changed and current percentages should be recalculated.
+Purpose: derived event indicating that the hourly usage data changed and current percentages should be recalculated. It carries the **full hourly snapshot** so the Percentage Service can recalculate without reading the `hourly_usage` table.
 
 Published by:
 
@@ -147,7 +147,10 @@ JSON shape:
 
 ```json
 {
-  "hour": "2026-05-15T09:00:00"
+  "hour": "2026-05-15T09:00:00",
+  "communityProduced": 18.05,
+  "communityUsed": 18.05,
+  "gridUsed": 1.076
 }
 ```
 
@@ -156,14 +159,17 @@ Fields:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `hour` | ISO-8601 local datetime string | yes | Start of the hour whose usage data was updated |
+| `communityProduced` | number (kWh) | yes | Total community production for that hour after the update |
+| `communityUsed` | number (kWh) | yes | Total community-covered usage for that hour after the update |
+| `gridUsed` | number (kWh) | yes | Total grid-covered usage for that hour after the update |
 
 Processing order:
 
 ```text
 Usage Service writes hourly_usage
-Usage Service publishes Hourly Usage Updated Message
+Usage Service publishes Hourly Usage Updated Message with the full hourly snapshot
 Percentage Service consumes update
-Percentage Service reads hourly_usage and writes current_percentage
+Percentage Service calculates from the message and writes current_percentage
 ```
 
 ## Guardrails
@@ -182,7 +188,7 @@ The JSON contract is kept stable through service-local DTOs instead of a shared 
 |---|---|---|
 | `energy-producer` | `EnergyMessage` | Serializes `type`, `association`, `kwh`, `datetime` through the Spring AMQP JSON converter |
 | `energy-user` | `EnergyMessage` | Serializes `type`, `association`, `kwh`, `datetime` through the Spring AMQP JSON converter |
-| `usage-service` | `EnergyMessage`, usage-update message | Deserializes producer/user JSON; serializes the usage update with `hour` |
-| `percentage-service` | `HourlyUsageUpdatedMessage` | Deserializes the usage-update JSON |
+| `usage-service` | `EnergyMessage`, usage-update message | Deserializes producer/user JSON; serializes the usage update with `hour` and the hourly totals |
+| `percentage-service` | `HourlyUsageUpdatedMessage` | Deserializes the usage-update JSON (hour + hourly totals) |
 
 Each service owns its own copy of the message shape, so this document is the single source of truth. Update it whenever a field is added, removed, renamed, or changes meaning.

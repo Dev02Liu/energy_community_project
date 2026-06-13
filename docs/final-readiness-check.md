@@ -53,7 +53,7 @@ For the exact manual end-to-end runbook, follow `docs/smoke-test.md`.
 - [ ] Usage Service writes `hourly_usage`.
 - [ ] Usage Service publishes an update message to RabbitMQ.
 - [ ] Percentage Service consumes the update message.
-- [ ] Percentage Service reads `hourly_usage`.
+- [ ] Percentage Service calculates from the update message and does not read `hourly_usage`.
 - [ ] Percentage Service writes rounded values to `current_percentage`.
 - [ ] REST API returns current data from `current_percentage`.
 - [ ] REST API returns historical data from `hourly_usage`.

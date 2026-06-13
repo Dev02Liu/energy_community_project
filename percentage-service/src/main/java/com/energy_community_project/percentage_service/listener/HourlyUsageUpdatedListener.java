@@ -17,6 +17,6 @@ public class HourlyUsageUpdatedListener {
 
     @RabbitListener(queues = "${app.update-queue.name}")
     public void receiveUpdate(HourlyUsageUpdatedMessage message) {
-        currentPercentageCalculationService.updateCurrentPercentage(message.getHour());
+        currentPercentageCalculationService.updateCurrentPercentage(message);
     }
 }

@@ -18,7 +18,7 @@ This means Flyway is the source of truth for table creation and Hibernate only v
 
 | Conceptual Specification Table | Implemented Table | Reason / Meaning |
 |---|---|---|
-| `energy_usage_hourly` | `hourly_usage` | Stores the same hourly aggregated usage values. The shorter implementation name is used consistently by JPA, Flyway, REST, Usage Service, and Percentage Service. |
+| `energy_usage_hourly` | `hourly_usage` | Stores the same hourly aggregated usage values. The shorter implementation name is used consistently by JPA, Flyway, REST, and Usage Service. |
 | `current_percentage` | `current_percentage` | Stores the latest calculated percentage values used by REST and GUI. |
 
 ## `hourly_usage`
@@ -121,7 +121,7 @@ If technical audit timestamps become required, add a new Flyway migration instea
 | Energy Producer | none | none |
 | Energy User | none | none |
 | Usage Service | `hourly_usage` | `hourly_usage` |
-| Percentage Service | `hourly_usage` | `current_percentage` |
+| Percentage Service | none (calculates from the update message) | `current_percentage` |
 | REST API | `hourly_usage`, `current_percentage` | none |
 | JavaFX GUI | none directly | none |
 

@@ -24,7 +24,7 @@ It consumes producer/user messages from RabbitMQ, aggregates them into hourly us
 | `UsageServiceApplication` | Spring Boot entry point. Declares the durable queues and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
 | `listener/EnergyMessageListener` | RabbitMQ boundary. Receives `EnergyMessage` from `energy_queue` and delegates to service logic. |
 | `messaging/EnergyMessage` | Service-local DTO consumed from Producer/User JSON. |
-| `messaging/HourlyUsageUpdatedMessage` | Service-local DTO published after usage changes. |
+| `messaging/HourlyUsageUpdatedMessage` | Service-local DTO published after usage changes. Carries the hour plus the full hourly snapshot (`communityProduced`, `communityUsed`, `gridUsed`) so the Percentage Service need not read `hourly_usage`. |
 | `entity/HourlyUsageEntity` | JPA entity for table `hourly_usage`. |
 | `repository/HourlyUsageRepository` | Data access for hourly usage rows. |
 | `service/HourlyUsageUpdateService` | Applies the business calculation, writes the DB, publishes the update event. |
@@ -117,7 +117,7 @@ sequenceDiagram
     S->>DB: find or create hourly row
     S->>DB: save updated usage values
     DB-->>S: row saved (committed)
-    S->>UQ: publish HourlyUsageUpdatedMessage(hour)
+    S->>UQ: publish HourlyUsageUpdatedMessage(hour, produced, used, gridUsed)
 ```
 
 ## Start Command

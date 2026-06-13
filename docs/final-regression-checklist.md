@@ -144,7 +144,7 @@ docker exec energy-db psql -U user -d energy_community -c "SELECT * FROM current
 ```
 
 - [ ] Consumes update messages from `percentage_update_queue`.
-- [ ] Reads `hourly_usage` and writes `current_percentage` for the matching hour.
+- [ ] Calculates from the update message and writes `current_percentage` for the matching hour.
 - [ ] `community_depleted = community_used / community_produced * 100`, rounded to 2 decimals.
 - [ ] `grid_portion = grid_used / (community_used + grid_used) * 100`, rounded to 2 decimals.
 - [ ] Division by zero is handled (returns `0`, no crash / no NaN rows).

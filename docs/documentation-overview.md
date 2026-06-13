@@ -23,7 +23,6 @@ flowchart LR
     Usage --> UsageTable
     Usage --> UpdateQueue
     UpdateQueue --> Percentage
-    Percentage --> UsageTable
     Percentage --> PercentageTable
     Api --> UsageTable
     Api --> PercentageTable

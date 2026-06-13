@@ -38,7 +38,6 @@ flowchart LR
     Usage --> UsageTable
     Usage --> UpdateQueue
     UpdateQueue --> Percentage
-    UsageTable --> Percentage
     Percentage --> PercentageTable
     UsageTable --> Api
     PercentageTable --> Api
@@ -272,7 +271,7 @@ Implemented tables:
 
 | Table | Responsibility | Writer | Readers |
 |---|---|---|---|
-| `hourly_usage` | Aggregated hourly energy usage. Conceptually equivalent to `energy_usage_hourly` in the project mapping. | Usage Service | Percentage Service, REST API |
+| `hourly_usage` | Aggregated hourly energy usage. Conceptually equivalent to `energy_usage_hourly` in the project mapping. | Usage Service | REST API |
 | `current_percentage` | Latest calculated percentage values displayed by REST and GUI. | Percentage Service | REST API |
 
 Detailed schema mapping is documented in [docs/database-schema.md](docs/database-schema.md).

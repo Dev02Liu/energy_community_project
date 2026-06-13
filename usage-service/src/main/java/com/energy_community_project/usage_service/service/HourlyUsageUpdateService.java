@@ -37,7 +37,13 @@ public class HourlyUsageUpdateService {
         }
 
         hourlyUsageRepository.save(hourlyUsage);
-        rabbitTemplate.convertAndSend(updateQueueName, new HourlyUsageUpdatedMessage(hour));
+        // The update message carries the full hourly snapshot so the percentage service
+        // never has to read the hourly_usage table itself.
+        rabbitTemplate.convertAndSend(updateQueueName, new HourlyUsageUpdatedMessage(
+                hour,
+                hourlyUsage.getCommunityProduced(),
+                hourlyUsage.getCommunityUsed(),
+                hourlyUsage.getGridUsed()));
     }
 
     // Community energy is used first; only what the community pool cannot cover is taken from the grid.

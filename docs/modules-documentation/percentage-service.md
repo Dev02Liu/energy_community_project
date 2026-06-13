@@ -4,7 +4,7 @@
 
 `percentage-service` is an independently startable Spring Boot application and the second grading-critical core service.
 
-It consumes usage update messages from RabbitMQ, reads the matching hourly usage row from PostgreSQL, calculates percentage values, and writes them to `current_percentage`.
+It consumes usage update messages from RabbitMQ, calculates percentage values **from the message payload**, and writes them to `current_percentage`. It does **not** read the `hourly_usage` table — the update message carries the full hourly snapshot, so the two core services never share a table read.
 
 ## Tech Stack
 
@@ -23,12 +23,10 @@ It consumes usage update messages from RabbitMQ, reads the matching hourly usage
 |---|---|
 | `PercentageServiceApplication` | Spring Boot entry point. Declares the update queue and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
 | `listener/HourlyUsageUpdatedListener` | RabbitMQ boundary. Receives `HourlyUsageUpdatedMessage`. |
-| `messaging/HourlyUsageUpdatedMessage` | Service-local DTO consumed from Usage Service JSON. |
-| `entity/HourlyUsageEntity` | Read model for table `hourly_usage`. |
+| `messaging/HourlyUsageUpdatedMessage` | Service-local DTO consumed from Usage Service JSON. Carries the hour plus the hourly totals (`communityProduced`, `communityUsed`, `gridUsed`). |
 | `entity/CurrentPercentageEntity` | Write model for table `current_percentage`. |
-| `repository/HourlyUsageRepository` | Reads hourly usage rows. |
 | `repository/CurrentPercentageRepository` | Writes the latest percentage row. |
-| `service/CurrentPercentageCalculationService` | Calculates and persists rounded percentage values. |
+| `service/CurrentPercentageCalculationService` | Calculates rounded percentage values from the message and persists them. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for required tables. |
 
 ## Configuration
@@ -50,13 +48,11 @@ flowchart LR
     Queue["RabbitMQ<br/>percentage_update_queue"]
     Listener["HourlyUsageUpdatedListener"]
     Service["CurrentPercentageCalculationService"]
-    UsageTable["PostgreSQL<br/>hourly_usage"]
     PercentageTable["PostgreSQL<br/>current_percentage"]
 
     Usage --> Queue
     Queue --> Listener
     Listener --> Service
-    Service --> UsageTable
     Service --> PercentageTable
 ```
 
@@ -83,13 +79,11 @@ sequenceDiagram
     participant Q as RabbitMQ percentage_update_queue
     participant L as HourlyUsageUpdatedListener
     participant S as CurrentPercentageCalculationService
-    participant HU as hourly_usage
     participant CP as current_percentage
 
-    Q->>L: HourlyUsageUpdatedMessage(hour)
-    L->>S: updateCurrentPercentage(hour)
-    S->>HU: read hourly usage row
-    S->>S: calculate rounded percentages
+    Q->>L: HourlyUsageUpdatedMessage(hour, produced, used, gridUsed)
+    L->>S: updateCurrentPercentage(message)
+    S->>S: calculate rounded percentages from the message
     S->>CP: delete existing percentage rows
     S->>CP: save latest percentage row
 ```
@@ -112,7 +106,7 @@ Behavior to confirm during the smoke test (`docs/smoke-test.md`):
 
 - Consumes `percentage_update_queue`.
 - Does not consume Producer/User messages.
-- Reads `hourly_usage`.
+- Does not read `hourly_usage`; calculates from the update message.
 - Writes `current_percentage`.
 - Avoids division by zero.
 - Rounds persisted values to two decimals.
