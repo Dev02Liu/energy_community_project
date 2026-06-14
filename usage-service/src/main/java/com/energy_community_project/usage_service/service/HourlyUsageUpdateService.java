@@ -16,13 +16,16 @@ public class HourlyUsageUpdateService {
     private final HourlyUsageRepository hourlyUsageRepository;
     private final RabbitTemplate rabbitTemplate;
     private final String updateQueueName;
+    private final String producerType;
 
     public HourlyUsageUpdateService(HourlyUsageRepository hourlyUsageRepository,
                                     RabbitTemplate rabbitTemplate,
-                                    @Value("${app.update-queue.name}") String updateQueueName) {
+                                    @Value("${app.update-queue.name}") String updateQueueName,
+                                    @Value("${app.message.producer-type}") String producerType) {
         this.hourlyUsageRepository = hourlyUsageRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.updateQueueName = updateQueueName;
+        this.producerType = producerType;
     }
 
     public void handleEnergyMessage(EnergyMessage message) {
@@ -30,7 +33,7 @@ public class HourlyUsageUpdateService {
         HourlyUsageEntity hourlyUsage = hourlyUsageRepository.findById(hour)
                 .orElseGet(() -> new HourlyUsageEntity(hour, 0.0, 0.0, 0.0));
 
-        if ("PRODUCER".equals(message.getType())) {
+        if (producerType.equals(message.getType())) {
             hourlyUsage.setCommunityProduced(hourlyUsage.getCommunityProduced() + message.getKwh());
         } else {
             addUsage(hourlyUsage, message.getKwh());
