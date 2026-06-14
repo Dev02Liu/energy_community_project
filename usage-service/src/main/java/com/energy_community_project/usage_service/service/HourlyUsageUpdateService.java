@@ -17,15 +17,18 @@ public class HourlyUsageUpdateService {
     private final RabbitTemplate rabbitTemplate;
     private final String updateQueueName;
     private final String producerType;
+    private final String userType;
 
     public HourlyUsageUpdateService(HourlyUsageRepository hourlyUsageRepository,
                                     RabbitTemplate rabbitTemplate,
                                     @Value("${app.update-queue.name}") String updateQueueName,
-                                    @Value("${app.message.producer-type}") String producerType) {
+                                    @Value("${app.message.producer-type}") String producerType,
+                                    @Value("${app.message.user-type}") String userType) {
         this.hourlyUsageRepository = hourlyUsageRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.updateQueueName = updateQueueName;
         this.producerType = producerType;
+        this.userType = userType;
     }
 
     public void handleEnergyMessage(EnergyMessage message) {
@@ -35,8 +38,10 @@ public class HourlyUsageUpdateService {
 
         if (producerType.equals(message.getType())) {
             hourlyUsage.setCommunityProduced(hourlyUsage.getCommunityProduced() + message.getKwh());
-        } else {
+        } else if (userType.equals(message.getType())) {
             addUsage(hourlyUsage, message.getKwh());
+        } else {
+            throw new IllegalArgumentException("Unknown energy message type: " + message.getType());
         }
 
         hourlyUsageRepository.save(hourlyUsage);
