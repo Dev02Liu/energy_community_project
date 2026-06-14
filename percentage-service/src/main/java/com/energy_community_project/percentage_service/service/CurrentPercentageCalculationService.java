@@ -22,6 +22,14 @@ public class CurrentPercentageCalculationService {
         double produced = message.getCommunityProduced();
         double communityUsed = message.getCommunityUsed();
         double gridUsed = message.getGridUsed();
+
+        // Guard the message contract: kWh values can never be negative. Reject bad data instead of
+        // storing a nonsensical (negative) percentage - the listener logs and drops the message.
+        if (produced < 0 || communityUsed < 0 || gridUsed < 0) {
+            throw new IllegalArgumentException("Negative kWh in update for hour " + message.getHour()
+                    + " (produced=" + produced + ", communityUsed=" + communityUsed + ", gridUsed=" + gridUsed + ")");
+        }
+
         double totalUsed = communityUsed + gridUsed;
 
         double communityDepleted = produced > 0 ? round(communityUsed / produced * 100.0) : 0.0;
