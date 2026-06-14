@@ -27,16 +27,12 @@ public class EnergyReadService {
     }
 
     public CurrentPercentageDTO getCurrentPercentage() {
-        // No fabricated timestamp: if nothing has been calculated yet, hour stays null instead of
-        // pretending "now" is a real, calculated data point.
         return currentPercentageRepository.findFirstByOrderByHourDesc()
                 .map(c -> new CurrentPercentageDTO(c.getHour().toString(), c.getCommunityDepleted(), c.getGridPortion()))
                 .orElseGet(() -> new CurrentPercentageDTO(null, 0.0, 0.0));
     }
 
     public HistoricalSummaryDTO getHistoricalData(LocalDateTime start, LocalDateTime end) {
-        // Load the per-hour rows the GUI used to receive, then aggregate them here, one layer below the
-        // UI: the GUI no longer sums, the REST API returns the finished totals.
         List<HistoricalUsageDTO> rows = hourlyUsageRepository.findByHourBetween(start, end).stream()
                 .map(entity -> new HistoricalUsageDTO(
                         entity.getHour().toString(),
