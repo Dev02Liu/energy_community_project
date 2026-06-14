@@ -1,50 +1,34 @@
 package com.energy_community_project.rest_api.controller;
 
 import com.energy_community_project.rest_api.dto.CurrentPercentageDTO;
-import com.energy_community_project.rest_api.dto.HistoricalUsageDTO;
-import com.energy_community_project.rest_api.entity.CurrentPercentageEntity;
-import com.energy_community_project.rest_api.repository.CurrentPercentageRepository;
-import com.energy_community_project.rest_api.repository.HourlyUsageRepository;
+import com.energy_community_project.rest_api.dto.HistoricalSummaryDTO;
+import com.energy_community_project.rest_api.service.EnergyReadService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @RestController
 @RequestMapping("/energy")
 public class EnergyController {
 
-    private final CurrentPercentageRepository currentPercentageRepository;
-    private final HourlyUsageRepository hourlyUsageRepository;
+    private final EnergyReadService energyReadService;
 
-    public EnergyController(CurrentPercentageRepository currentPercentageRepository,
-                            HourlyUsageRepository hourlyUsageRepository) {
-        this.currentPercentageRepository = currentPercentageRepository;
-        this.hourlyUsageRepository = hourlyUsageRepository;
+    public EnergyController(EnergyReadService energyReadService) {
+        this.energyReadService = energyReadService;
     }
 
     @GetMapping("/current")
     public CurrentPercentageDTO getCurrentPercentage() {
-        CurrentPercentageEntity current = currentPercentageRepository.findFirstByOrderByHourDesc().orElse(null);
-        if (current == null) {
-            return new CurrentPercentageDTO(LocalDateTime.now().toString(), 0.0, 0.0);
-        }
-        return new CurrentPercentageDTO(current.getHour().toString(), current.getCommunityDepleted(), current.getGridPortion());
+        return energyReadService.getCurrentPercentage();
     }
 
     @GetMapping("/historical")
-    public List<HistoricalUsageDTO> getHistoricalData(
+    public HistoricalSummaryDTO getHistoricalData(
             @RequestParam LocalDateTime start,
             @RequestParam LocalDateTime end) {
-        return hourlyUsageRepository.findByHourBetween(start, end).stream()
-                .map(entity -> new HistoricalUsageDTO(
-                        entity.getHour().toString(),
-                        entity.getCommunityProduced(),
-                        entity.getCommunityUsed(),
-                        entity.getGridUsed()))
-                .toList();
+        return energyReadService.getHistoricalData(start, end);
     }
 }

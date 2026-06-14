@@ -20,7 +20,8 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 
 | Class / Package | Responsibility |
 |---|---|
-| `EnergyUserApplication` | Spring Boot entry point, scheduling enabled, AMQP JSON converter bean. |
+| `EnergyUserApplication` | Spring Boot entry point; enables scheduling. |
+| `config/RabbitMqConfig` | Declares the AMQP JSON converter bean. |
 | `messaging/EnergyMessage` | Service-local DTO published to RabbitMQ. Fields: `type`, `association`, `kwh`, `datetime`. |
 | `scheduling/EnergyUserScheduler` | Periodically waits a short random delay and triggers usage publishing. |
 | `service/EnergyUserService` | Creates user messages and publishes them to `energy_queue`. |
@@ -34,8 +35,10 @@ File: `energy-user/src/main/resources/application.properties`
 |---|---|
 | HTTP port | none; this module is a RabbitMQ publisher |
 | `app.queue.name` | `energy_queue` |
-| `app.scheduling.fixed-delay-ms` | `1000`; combined with a randomized `0-3999 ms` wait, events are published every `1-5` seconds. |
-| `spring.autoconfigure.exclude` | Excludes JDBC/JPA autoconfiguration because this module must not use the database. |
+| `app.scheduling.fixed-delay-ms` / `app.scheduling.max-random-delay-ms` | `1000` / `4000`; combined, events are published every `1-5` seconds. |
+| `app.message.type` / `app.message.association` | `USER` / `COMMUNITY`; set on every published message. |
+| `app.usage.base-kwh` / `app.usage.variation-kwh` | `0.001` / `0.002`; base consumption plus random variation. |
+| `app.usage.peak-multiplier` / `night-multiplier` / `normal-multiplier` | `3.0` / `0.5` / `1.0`; time-of-day multipliers (see Consumption Profile). |
 
 ## Consumption Profile
 

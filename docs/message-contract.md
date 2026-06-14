@@ -81,10 +81,10 @@ Fields:
 Message handling in `usage-service`:
 
 - a `PRODUCER` message increases `community_produced`,
-- every other message is treated as usage (community pool first, then grid).
+- a `USER` message is applied as usage (community pool first, then grid),
+- any other or unknown `type` is rejected with an `IllegalArgumentException` instead of being counted as usage.
 
-The only senders are the Energy Producer and Energy User, which always send valid `COMMUNITY`
-messages, so the service stays close to the lecture example and does not add extra validation.
+The matched types are configurable (`app.message.producer-type`, `app.message.user-type`).
 
 ## Producer Message Example
 

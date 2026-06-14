@@ -21,7 +21,8 @@ It does not read or write PostgreSQL and does not call the Usage Service directl
 
 | Class / Package | Responsibility |
 |---|---|
-| `EnergyProducerApplication` | Spring Boot entry point, scheduling enabled, AMQP JSON converter bean. |
+| `EnergyProducerApplication` | Spring Boot entry point; enables scheduling. |
+| `config/RabbitMqConfig` | Declares the AMQP JSON converter bean. |
 | `messaging/EnergyMessage` | Service-local DTO published to RabbitMQ. Fields: `type`, `association`, `kwh`, `datetime`. |
 | `scheduling/EnergyProducerScheduler` | Periodically waits a short random delay and triggers production publishing. |
 | `service/EnergyProducerService` | Creates producer messages and publishes them to `energy_queue`. |
@@ -36,10 +37,11 @@ File: `energy-producer/src/main/resources/application.properties`
 |---|---|
 | HTTP port | none; this module is a RabbitMQ publisher |
 | `app.queue.name` | `energy_queue` |
-| `app.scheduling.fixed-delay-ms` | `1000`; combined with a randomized `0-3999 ms` wait, events are published every `1-5` seconds. |
+| `app.scheduling.fixed-delay-ms` / `app.scheduling.max-random-delay-ms` | `1000` / `4000`; combined, events are published every `1-5` seconds. |
+| `app.message.type` / `app.message.association` | `PRODUCER` / `COMMUNITY`; set on every published message. |
 | `app.production.min-kwh` / `max-kwh` | `0.001` / `0.006`; minute-scale production calculator bounds. |
+| `app.production.full-sun-radiation` / `variation-factor` | `800.0` / `0.1`; radiation (W/m²) mapped to max output, and the random variation fraction. |
 | `app.weather.latitude` / `longitude` | `48.2082` / `16.3738` (Vienna); location used for the Open-Meteo request. |
-| `spring.autoconfigure.exclude` | Excludes JDBC/JPA autoconfiguration because this module must not use the database. |
 
 ## Runtime Flow
 

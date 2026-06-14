@@ -21,7 +21,8 @@ It consumes producer/user messages from RabbitMQ, aggregates them into hourly us
 
 | Class / Package | Responsibility |
 |---|---|
-| `UsageServiceApplication` | Spring Boot entry point. Declares the durable queues and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
+| `UsageServiceApplication` | Spring Boot entry point. |
+| `config/RabbitMqConfig` | Declares the durable queues (`energy_queue`, `percentage_update_queue`) and the AMQP JSON converter as `@Bean`s. |
 | `listener/EnergyMessageListener` | RabbitMQ boundary. Receives `EnergyMessage` from `energy_queue` and delegates to service logic. |
 | `messaging/EnergyMessage` | Service-local DTO consumed from Producer/User JSON. |
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO published after usage changes. Carries the hour plus the full hourly snapshot (`communityProduced`, `communityUsed`, `gridUsed`) so the Percentage Service need not read `hourly_usage`. |
@@ -39,6 +40,7 @@ File: `usage-service/src/main/resources/application.properties`
 | HTTP port | none; this module is a RabbitMQ worker |
 | `app.queue.name` | `energy_queue` |
 | `app.update-queue.name` | `percentage_update_queue` |
+| `app.message.producer-type` / `app.message.user-type` | `PRODUCER` / `USER`; message types matched in the service (unknown types are rejected). |
 | `spring.datasource.url` | `jdbc:postgresql://localhost:5432/energy_community` |
 | `spring.jpa.hibernate.ddl-auto` | `validate` |
 
@@ -97,9 +99,10 @@ Invariant:
 communityUsed <= communityProduced
 ```
 
-A `PRODUCER` message increases `communityProduced`; every other message is treated as usage. Since the
-only senders are the Energy Producer and Energy User (which always send valid `COMMUNITY` messages),
-the service keeps the lecture style and does not add extra message validation.
+The message type is matched explicitly: a `PRODUCER` message increases `communityProduced`, a `USER`
+message is applied as usage (community pool first, overflow to grid). Any other or unknown type is
+rejected with an `IllegalArgumentException` instead of being silently counted as usage. The matched
+types are configurable via `app.message.producer-type` and `app.message.user-type`.
 
 ## Sequence Diagram
 

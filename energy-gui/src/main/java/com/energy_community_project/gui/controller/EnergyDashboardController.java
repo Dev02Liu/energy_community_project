@@ -2,7 +2,7 @@ package com.energy_community_project.gui.controller;
 
 import com.energy_community_project.gui.client.EnergyApiClient;
 import com.energy_community_project.gui.dto.CurrentPercentageDTO;
-import com.energy_community_project.gui.dto.HistoricalUsageDTO;
+import com.energy_community_project.gui.dto.HistoricalSummaryDTO;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
@@ -13,7 +13,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Locale;
 
 public class EnergyDashboardController {
@@ -98,8 +97,8 @@ public class EnergyDashboardController {
             return;
         }
 
-        apiClient.fetchHistoricalUsage(start.toString(), end.toString())
-                .thenAccept(entries -> Platform.runLater(() -> showHistoricalUsage(entries)))
+        apiClient.fetchHistoricalData(start.toString(), end.toString())
+                .thenAccept(summary -> Platform.runLater(() -> showHistoricalUsage(summary)))
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     showHistoricalError(ERROR_MESSAGE);
@@ -116,35 +115,17 @@ public class EnergyDashboardController {
         return date.atTime(hour, 0);
     }
 
-    // Aggregates hourly API rows into the three totals shown by the dashboard.
-    static UsageSummary summarize(List<HistoricalUsageDTO> entries) {
-        double produced = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityProduced).sum();
-        double used = entries.stream().mapToDouble(HistoricalUsageDTO::getCommunityUsed).sum();
-        double gridUsed = entries.stream().mapToDouble(HistoricalUsageDTO::getGridUsed).sum();
-        return new UsageSummary(produced, used, gridUsed);
-    }
-
-    // Immutable view model for aggregated historical usage values.
-    record UsageSummary(double produced, double used, double gridUsed) {
-    }
-
     // Writes current percentage values into the top dashboard labels.
     private void showCurrentPercentage(CurrentPercentageDTO dto) {
         communityPoolLabel.setText("Community Pool: " + format(dto.getCommunityDepleted()) + "% used");
         gridPortionLabel.setText("Grid Portion: " + format(dto.getGridPortion()) + "%");
     }
 
-    // Writes historical usage totals into the bottom dashboard labels.
-    private void showHistoricalUsage(List<HistoricalUsageDTO> entries) {
-        if (entries == null || entries.isEmpty()) {
-            showHistoricalError(ERROR_MESSAGE);
-            return;
-        }
-
-        UsageSummary summary = summarize(entries);
-        communityProducedLabel.setText("Community produced: " + format(summary.produced()) + " kWh");
-        communityUsedLabel.setText("Community used: " + format(summary.used()) + " kWh");
-        gridUsedLabel.setText("Grid used: " + format(summary.gridUsed()) + " kWh");
+    // Writes the aggregated historical totals (summed by the REST API) into the bottom dashboard labels.
+    private void showHistoricalUsage(HistoricalSummaryDTO summary) {
+        communityProducedLabel.setText("Community produced: " + format(summary.getCommunityProduced()) + " kWh");
+        communityUsedLabel.setText("Community used: " + format(summary.getCommunityUsed()) + " kWh");
+        gridUsedLabel.setText("Grid used: " + format(summary.getGridUsed()) + " kWh");
     }
 
     // Formats numeric values consistently for all GUI labels.

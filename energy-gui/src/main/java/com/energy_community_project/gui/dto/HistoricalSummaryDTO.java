@@ -1,21 +1,12 @@
 package com.energy_community_project.gui.dto;
 
-public class HistoricalUsageDTO {
+public class HistoricalSummaryDTO {
 
-    private String hour;
     private double communityProduced;
     private double communityUsed;
     private double gridUsed;
 
-    public HistoricalUsageDTO() {
-    }
-
-    public String getHour() {
-        return hour;
-    }
-
-    public void setHour(String hour) {
-        this.hour = hour;
+    public HistoricalSummaryDTO() {
     }
 
     public double getCommunityProduced() {

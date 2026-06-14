@@ -1,8 +1,7 @@
 package com.energy_community_project.gui.client;
 
 import com.energy_community_project.gui.dto.CurrentPercentageDTO;
-import com.energy_community_project.gui.dto.HistoricalUsageDTO;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.energy_community_project.gui.dto.HistoricalSummaryDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -12,7 +11,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Calls the REST API and parses the JSON responses into DTOs. Requests run asynchronously so the GUI stays responsive. */
@@ -39,11 +37,11 @@ public class EnergyApiClient {
         });
     }
 
-    // Requests historical usage rows for the selected date range and maps the JSON array to DTOs.
-    public CompletableFuture<List<HistoricalUsageDTO>> fetchHistoricalUsage(String start, String end) {
+    // Requests the historical usage totals for the selected date range. The REST API aggregates them.
+    public CompletableFuture<HistoricalSummaryDTO> fetchHistoricalData(String start, String end) {
         return get("/energy/historical?start=" + encode(start) + "&end=" + encode(end)).thenApply(body -> {
             try {
-                return objectMapper.readValue(body, new TypeReference<List<HistoricalUsageDTO>>() {});
+                return objectMapper.readValue(body, HistoricalSummaryDTO.class);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

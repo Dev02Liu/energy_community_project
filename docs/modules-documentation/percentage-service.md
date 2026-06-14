@@ -21,12 +21,13 @@ It consumes usage update messages from RabbitMQ, calculates percentage values **
 
 | Class / Package | Responsibility |
 |---|---|
-| `PercentageServiceApplication` | Spring Boot entry point. Declares the update queue and the AMQP JSON converter as `@Bean`s (same pattern as the lecture's main application class). |
-| `listener/HourlyUsageUpdatedListener` | RabbitMQ boundary. Receives `HourlyUsageUpdatedMessage`. |
+| `PercentageServiceApplication` | Spring Boot entry point. |
+| `config/RabbitMqConfig` | Declares the update queue (`percentage_update_queue`) and the AMQP JSON converter as `@Bean`s. |
+| `listener/HourlyUsageUpdatedListener` | RabbitMQ boundary. Receives `HourlyUsageUpdatedMessage`; on a processing error it logs and drops the message instead of letting Spring AMQP requeue it endlessly. |
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO consumed from Usage Service JSON. Carries the hour plus the hourly totals (`communityProduced`, `communityUsed`, `gridUsed`). |
 | `entity/CurrentPercentageEntity` | Write model for table `current_percentage`. |
 | `repository/CurrentPercentageRepository` | Writes the latest percentage row. |
-| `service/CurrentPercentageCalculationService` | Calculates rounded percentage values from the message and persists them. |
+| `service/CurrentPercentageCalculationService` | Validates the incoming totals, calculates rounded percentage values from the message, and persists them in one `@Transactional` unit. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for required tables. |
 
 ## Configuration
@@ -71,6 +72,11 @@ gridPortion = gridUsed / (communityUsed + gridUsed) * 100
 If `communityUsed + gridUsed = 0`, `gridPortion = 0`.
 
 Both values are rounded to two decimals (`Math.round(value * 100) / 100`) before persistence.
+
+Input guard: if `communityProduced`, `communityUsed`, or `gridUsed` is negative, the update is rejected
+with an `IllegalArgumentException` (logged and dropped by the listener) instead of storing a negative
+percentage. The `deleteAll()` + `save()` run inside one `@Transactional` method, so `current_percentage`
+is never left empty if the save fails.
 
 ## Sequence Diagram
 

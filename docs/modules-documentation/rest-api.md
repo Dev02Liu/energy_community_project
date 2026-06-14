@@ -23,7 +23,8 @@ It reads DB-backed data from PostgreSQL and does not calculate or write the core
 | Class / Package | Responsibility |
 |---|---|
 | `RestApiApplication` | Spring Boot entry point. |
-| `EnergyController` | Exposes `/energy/current` and `/energy/historical`. The `start`/`end` query parameters are bound directly to `LocalDateTime` (Spring parses them). |
+| `EnergyController` | Thin HTTP boundary: exposes `/energy/current` and `/energy/historical` and delegates to `EnergyReadService`. The `start`/`end` query parameters are bound directly to `LocalDateTime` (Spring parses them). |
+| `service/EnergyReadService` | Loads the data from the repositories and maps it to response DTOs, so the controller holds no data-access logic. |
 | `CurrentPercentageDTO` | Response DTO for current percentage data. |
 | `HistoricalUsageDTO` | Response DTO for historical hourly usage data. |
 | `entity/CurrentPercentageEntity` | Read model for table `current_percentage`. |
@@ -63,6 +64,7 @@ empty list.
 flowchart LR
     GUI["JavaFX GUI"]
     Controller["EnergyController"]
+    Service["EnergyReadService"]
     CurrentRepo["CurrentPercentageRepository"]
     UsageRepo["HourlyUsageRepository"]
     CP["PostgreSQL<br/>current_percentage"]
@@ -70,8 +72,9 @@ flowchart LR
 
     GUI -->|"GET /energy/current"| Controller
     GUI -->|"GET /energy/historical"| Controller
-    Controller --> CurrentRepo
-    Controller --> UsageRepo
+    Controller --> Service
+    Service --> CurrentRepo
+    Service --> UsageRepo
     CurrentRepo --> CP
     UsageRepo --> HU
 ```
@@ -82,18 +85,23 @@ flowchart LR
 sequenceDiagram
     participant GUI as JavaFX GUI
     participant API as EnergyController
+    participant SVC as EnergyReadService
     participant CP as current_percentage
     participant HU as hourly_usage
 
     GUI->>API: GET /energy/current
-    API->>CP: find latest percentage row
-    CP-->>API: latest row or none
+    API->>SVC: getCurrentPercentage()
+    SVC->>CP: find latest percentage row
+    CP-->>SVC: latest row or none
+    SVC-->>API: CurrentPercentageDTO
     API-->>GUI: CurrentPercentageDTO
 
     GUI->>API: GET /energy/historical?start=...&end=...
     API->>API: Spring binds start/end to LocalDateTime
-    API->>HU: find rows between start/end
-    HU-->>API: hourly usage rows
+    API->>SVC: getHistoricalData(start, end)
+    SVC->>HU: find rows between start/end
+    HU-->>SVC: hourly usage rows
+    SVC-->>API: HistoricalUsageDTO[]
     API-->>GUI: HistoricalUsageDTO[]
 ```
 

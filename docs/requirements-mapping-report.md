@@ -3,9 +3,9 @@
 This report maps the project against the **specification**, the **grading schema**, and the
 **lecture transcripts / lecture code** (`project-resources/`). It also records the lecture‑fidelity
 review (which annotations/functions are used, and whether each was taught) and the changes made to
-keep the code minimal and close to the lecture.
+keep the code minimal and close to the lecture, plus the robustness features added back for the code review.
 
-Verification date: 2026-06-04. All 6 modules build with `clean package` (`BUILD SUCCESS`); the message
+Verification date: 2026-06-04; the four backend services were re-built and re-verified end-to-end on 2026-06-14 after the robustness pass (rest-api and energy-gui unchanged since). All 6 modules build with `clean package` (`BUILD SUCCESS`); the message
 flow was additionally verified end‑to‑end against the spec's own worked example via the smoke-test runbook.
 
 ---
@@ -81,25 +81,30 @@ Every framework feature used was checked against the lecture transcripts and the
 | GUI async (`sendAsync` + `CompletableFuture` + `Platform.runLater`) | The lecture's single‑label HTTP demo was synchronous; the dashboard loads on startup and on button clicks, so an async wrapper keeps the window from freezing. Core HTTP/JSON is exactly as taught | "Run the request in the background, then update the labels on the UI thread" |
 | `@Table` on entities | Trivial JPA annotation; lecture used `@Entity(name=…)` for the same purpose | "Maps the entity to a table name" |
 
-### Removed in this pass to tighten lecture fidelity
+### Added in this pass for robustness (beyond the literal lecture, easy to explain in the review)
 
-| Removed | Reason |
-|---|---|
-| `@Transactional` (usage & percentage services) | Not taught (only ACID **theory** was covered). Also **more correct** here: without it, `save()` commits **before** the downstream `convertAndSend`, so the percentage service always reads committed data. |
-| Standalone `@Configuration` class `RabbitMqConfig` (usage & percentage) | The lecture declares queue beans **in the `@SpringBootApplication` class**; the `@Bean Queue` + converter methods were moved there and the two config classes deleted. |
+| Feature | Why it is there | Explainability |
+|---|---|---|
+| Standalone `@Configuration` class `config/RabbitMqConfig` (all four backend services) | Separation of concerns: the queue and converter `@Bean`s live in a dedicated config class instead of the `@SpringBootApplication` class, keeping the entry point focused on bootstrapping. Builds on the taught `@Bean`/`@Configuration` concept. | "All RabbitMQ setup sits in one config class per service" |
+| Explicit message-type handling + validation (`usage-service`) | `PRODUCER` and `USER` are matched explicitly; an unknown type is rejected with `IllegalArgumentException` instead of being silently counted as usage. | "We don't blindly trust the incoming message type" |
+| `@Transactional` on `CurrentPercentageCalculationService.updateCurrentPercentage` (`percentage-service`) | Makes `deleteAll()` + `save()` one atomic unit (ACID), so `current_percentage` is never left empty if the save fails. | "Delete and save commit together or not at all" |
+| Input validation + listener error handling (`percentage-service`) | Negative kWh in an update is rejected; the listener logs and drops a failing message instead of letting Spring AMQP requeue it endlessly. | "Bad data is logged and dropped, never stored or looped" |
 
 ---
 
 ## 4. Changes Applied (this and the previous clean‑up passes)
 
-- **energy-producer**: weather package reduced from **7 classes to 2** (`WeatherClient` + `WeatherProductionCalculator`); raw‑HTTP/adapter/fallback/exception/snapshot classes removed; offline behaviour handled inline (returns `0` W/m²).
-- **usage-service**: removed defensive message validation (logger, type/association/kWh guards) — the only senders are our own producer/user; removed `@Transactional`; queue + converter beans moved into the application class.
-- **percentage-service**: `BigDecimal` rounding → `Math.round`; removed impossible null‑guards; removed `@Transactional`; queue + converter beans moved into the application class.
+- **energy-producer**: weather package reduced from **7 classes to 2** (`WeatherClient` + `WeatherProductionCalculator`); raw‑HTTP/adapter/fallback/exception/snapshot classes removed; offline behaviour handled inline (returns `0` W/m²). Magic production/weather/message values externalized to `application.properties` (`@Value`); queue + converter bean in `config/RabbitMqConfig`.
+- **energy-user**: magic consumption/multiplier/message values externalized to `application.properties` (`@Value`); queue + converter bean in `config/RabbitMqConfig`.
+- **usage-service**: community-pool-first usage logic with hourly bucketing; explicit `PRODUCER`/`USER` type handling (unknown types rejected with `IllegalArgumentException`); message types externalized via `@Value`; queue + converter beans in `config/RabbitMqConfig`.
+- **percentage-service**: `BigDecimal` rounding → `Math.round`; percentages calculated from the update message (no `hourly_usage` read); negative-kWh input validation; `@Transactional` `deleteAll()` + `save()`; listener logs and drops failing messages; queue + converter beans in `config/RabbitMqConfig`.
 - **rest-api**: `EnergyController` now binds `@RequestParam LocalDateTime` directly (lecture `ObservationController` style); manual date parsing and the `start>end` 400 guard removed (invalid date → Spring returns 400; reversed range → empty list).
 - **energy-gui**: removed the generic `<T>` send helper and the custom `@FunctionalInterface` in `EnergyApiClient`; two straightforward request methods remain.
 
-Net effect: well over **700 lines of production code removed**, leaving each module minimal and close
-to the lecture code. All six modules build cleanly (`clean package` → `BUILD SUCCESS`).
+Net effect: the cleanup passes removed well over **700 lines of production code**; this robustness pass
+added back a small amount (one config class per service, plus validation, a transaction, and listener
+error handling), leaving each module still minimal and close to the lecture code. All six modules build
+cleanly (`clean package` → `BUILD SUCCESS`).
 
 ---
 
