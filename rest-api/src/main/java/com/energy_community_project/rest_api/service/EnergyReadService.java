@@ -5,7 +5,9 @@ import com.energy_community_project.rest_api.dto.HistoricalSummaryDTO;
 import com.energy_community_project.rest_api.dto.HistoricalUsageDTO;
 import com.energy_community_project.rest_api.repository.CurrentPercentageRepository;
 import com.energy_community_project.rest_api.repository.HourlyUsageRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +35,10 @@ public class EnergyReadService {
     }
 
     public HistoricalSummaryDTO getHistoricalData(LocalDateTime start, LocalDateTime end) {
+        if (start.isAfter(end)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start must be before or equal to end");
+        }
+
         List<HistoricalUsageDTO> rows = hourlyUsageRepository.findByHourBetween(start, end).stream()
                 .map(entity -> new HistoricalUsageDTO(
                         entity.getHour().toString(),
