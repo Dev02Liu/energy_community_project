@@ -15,7 +15,7 @@ flow was additionally verified end‑to‑end against the spec's own worked exam
 | Component (weight) | Requirement | Where implemented | Status |
 |---|---|---|---|
 | **Usage Service (30%)** | Receives PRODUCER/USER messages, updates the usage table correctly, then sends an update message | `usage-service`: `EnergyMessageListener` → `HourlyUsageUpdateService` (community pool first, overflow to grid, hourly bucketing) → saves `hourly_usage` → publishes `HourlyUsageUpdatedMessage` | ✅ Verified end‑to‑end against the spec example |
-| **Current Percentage Service (30%)** | Receives the update message, updates the current percentage table correctly | `percentage-service`: `HourlyUsageUpdatedListener` → `CurrentPercentageCalculationService` (`community_used/produced`, `grid/(community_used+grid)`, 2 decimals, only current hour) → `current_percentage` | ✅ Verified end‑to‑end against the spec example |
+| **Current Percentage Service (30%)** | Receives the update message, updates the current percentage table correctly | `percentage-service`: `HourlyUsageUpdatedListener` → `CurrentPercentageCalculationService` (`community_used/produced`, `grid/(community_used+grid)`, 2 decimals, one row per hour) → `current_percentage` | ✅ Verified end‑to‑end against the spec example |
 | **Energy Producer (10%)** | Random 1–5 s interval, sensible kWh, **weather** determines kWh | `energy-producer`: `EnergyProducerScheduler` (1 s fixed delay + 0–4 s random) → `WeatherClient` (Open‑Meteo solar radiation) + `WeatherProductionCalculator` | ✅ |
 | **Energy User (10%)** | Random 1–5 s interval, sensible kWh, **time of day** determines kWh | `energy-user`: `EnergyUserScheduler` → `EnergyUsageCalculator` (peak / off‑peak / night multiplier) | ✅ |
 | **REST API (10%)** | Spring Boot reads from the **database** (not static data) | `rest-api`: `EnergyController` reads `current_percentage` and `hourly_usage` via JPA; `GET /energy/current`, `GET /energy/historical` | ✅ |
@@ -43,7 +43,7 @@ flow was additionally verified end‑to‑end against the spec's own worked exam
 | Minutes accumulate into the matching hour | `datetime` truncated to the hour (`withMinute(0)…`) |
 | Spec example: `USER 0.05` on `18.05/18.02/1.056` → `18.05/18.05/1.076` | **Exact match** through the live system |
 | Spec percentage example: `100.00` depleted, `5.63` grid portion | **Exact match** |
-| Percentage table holds only the current hour | `deleteAll()` + `save()` — verified single row |
+| Percentage table keeps historical hourly values | `save()` with `hour` as primary key; same hour is updated, older hourly rows remain |
 | `community_produced = 0` → depleted `0`; `community_used+grid_used = 0` → grid portion `0` | Covered (division guards) |
 | GUI not connected to DB; uses REST | `EnergyApiClient` only calls `http://localhost:8080/energy/...` |
 | REST is read‑only on the DB | Controller only reads repositories |
@@ -87,7 +87,7 @@ Every framework feature used was checked against the lecture transcripts and the
 |---|---|---|
 | Standalone `@Configuration` class `config/RabbitMqConfig` (all four backend services) | Separation of concerns: the queue and converter `@Bean`s live in a dedicated config class instead of the `@SpringBootApplication` class, keeping the entry point focused on bootstrapping. Builds on the taught `@Bean`/`@Configuration` concept. | "All RabbitMQ setup sits in one config class per service" |
 | Explicit message-type handling + validation (`usage-service`) | `PRODUCER` and `USER` are matched explicitly; an unknown type is rejected with `IllegalArgumentException` instead of being silently counted as usage. | "We don't blindly trust the incoming message type" |
-| `@Transactional` on `CurrentPercentageCalculationService.updateCurrentPercentage` (`percentage-service`) | Makes `deleteAll()` + `save()` one atomic unit (ACID), so `current_percentage` is never left empty if the save fails. | "Delete and save commit together or not at all" |
+| Hour-keyed save in `CurrentPercentageCalculationService.updateCurrentPercentage` (`percentage-service`) | Uses `hour` as the primary key, so the same hour is updated in place and older hourly rows remain. | "One stored percentage row per hour" |
 | Input validation + listener error handling (`percentage-service`) | Negative kWh in an update is rejected; the listener logs and drops a failing message instead of letting Spring AMQP requeue it endlessly. | "Bad data is logged and dropped, never stored or looped" |
 
 ---
@@ -97,7 +97,7 @@ Every framework feature used was checked against the lecture transcripts and the
 - **energy-producer**: weather package reduced from **7 classes to 2** (`WeatherClient` + `WeatherProductionCalculator`); raw‑HTTP/adapter/fallback/exception/snapshot classes removed; offline behaviour handled inline (returns `0` W/m²). Magic production/weather/message values externalized to `application.properties` (`@Value`); queue + converter bean in `config/RabbitMqConfig`.
 - **energy-user**: magic consumption/multiplier/message values externalized to `application.properties` (`@Value`); queue + converter bean in `config/RabbitMqConfig`.
 - **usage-service**: community-pool-first usage logic with hourly bucketing; explicit `PRODUCER`/`USER` type handling (unknown types rejected with `IllegalArgumentException`); message types externalized via `@Value`; queue + converter beans in `config/RabbitMqConfig`.
-- **percentage-service**: `BigDecimal` rounding → `Math.round`; percentages calculated from the update message (no `hourly_usage` read); negative-kWh input validation; `@Transactional` `deleteAll()` + `save()`; listener logs and drops failing messages; queue + converter beans in `config/RabbitMqConfig`.
+- **percentage-service**: `BigDecimal` rounding → `Math.round`; percentages calculated from the update message (no `hourly_usage` read); negative-kWh input validation; hour-keyed `save()` keeps one historical row per hour; listener logs and drops failing messages; queue + converter beans in `config/RabbitMqConfig`.
 - **rest-api**: `EnergyController` now binds `@RequestParam LocalDateTime` directly (lecture `ObservationController` style); manual date parsing and the `start>end` 400 guard removed (invalid date → Spring returns 400; reversed range → empty list).
 - **energy-gui**: removed the generic `<T>` send helper and the custom `@FunctionalInterface` in `EnergyApiClient`; two straightforward request methods remain.
 

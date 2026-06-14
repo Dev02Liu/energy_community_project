@@ -4,7 +4,6 @@ import com.energy_community_project.percentage_service.entity.CurrentPercentageE
 import com.energy_community_project.percentage_service.messaging.HourlyUsageUpdatedMessage;
 import com.energy_community_project.percentage_service.repository.CurrentPercentageRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CurrentPercentageCalculationService {
@@ -15,9 +14,6 @@ public class CurrentPercentageCalculationService {
         this.currentPercentageRepository = currentPercentageRepository;
     }
 
-    // Runs delete + save as one atomic unit: on any failure the whole step rolls back,
-    // so the table is never left empty (no window between delete and save).
-    @Transactional
     public void updateCurrentPercentage(HourlyUsageUpdatedMessage message) {
         double produced = message.getCommunityProduced();
         double communityUsed = message.getCommunityUsed();
@@ -35,8 +31,8 @@ public class CurrentPercentageCalculationService {
         double communityDepleted = produced > 0 ? round(communityUsed / produced * 100.0) : 0.0;
         double gridPortion = totalUsed > 0 ? round(gridUsed / totalUsed * 100.0) : 0.0;
 
-        // The table only ever holds the current hour
-        currentPercentageRepository.deleteAll();
+        // Upsert by hour (the primary key): the current hour's row is updated in place while past hours
+        // stay, so the table keeps one historical percentage row per hour.
         currentPercentageRepository.save(new CurrentPercentageEntity(message.getHour(), communityDepleted, gridPortion));
     }
 

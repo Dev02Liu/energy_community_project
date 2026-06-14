@@ -26,8 +26,8 @@ It consumes usage update messages from RabbitMQ, calculates percentage values **
 | `listener/HourlyUsageUpdatedListener` | RabbitMQ boundary. Receives `HourlyUsageUpdatedMessage`; on a processing error it logs and drops the message instead of letting Spring AMQP requeue it endlessly. |
 | `messaging/HourlyUsageUpdatedMessage` | Service-local DTO consumed from Usage Service JSON. Carries the hour plus the hourly totals (`communityProduced`, `communityUsed`, `gridUsed`). |
 | `entity/CurrentPercentageEntity` | Write model for table `current_percentage`. |
-| `repository/CurrentPercentageRepository` | Writes the latest percentage row. |
-| `service/CurrentPercentageCalculationService` | Validates the incoming totals, calculates rounded percentage values from the message, and persists them in one `@Transactional` unit. |
+| `repository/CurrentPercentageRepository` | Writes percentage rows keyed by hour. |
+| `service/CurrentPercentageCalculationService` | Validates the incoming totals, calculates rounded percentage values from the message, and saves one row per hour. |
 | `db/migration/V1__create_energy_tables.sql` | Flyway migration for required tables. |
 
 ## Configuration
@@ -75,8 +75,7 @@ Both values are rounded to two decimals (`Math.round(value * 100) / 100`) before
 
 Input guard: if `communityProduced`, `communityUsed`, or `gridUsed` is negative, the update is rejected
 with an `IllegalArgumentException` (logged and dropped by the listener) instead of storing a negative
-percentage. The `deleteAll()` + `save()` run inside one `@Transactional` method, so `current_percentage`
-is never left empty if the save fails.
+percentage. Saving uses `hour` as the primary key: the same hour is updated in place, older hourly rows stay.
 
 ## Sequence Diagram
 
@@ -90,8 +89,7 @@ sequenceDiagram
     Q->>L: HourlyUsageUpdatedMessage(hour, produced, used, gridUsed)
     L->>S: updateCurrentPercentage(message)
     S->>S: calculate rounded percentages from the message
-    S->>CP: delete existing percentage rows
-    S->>CP: save latest percentage row
+    S->>CP: save percentage row for this hour
 ```
 
 ## Start Command
@@ -116,4 +114,4 @@ Behavior to confirm during the smoke test (`docs/smoke-test.md`):
 - Writes `current_percentage`.
 - Avoids division by zero.
 - Rounds persisted values to two decimals.
-- Clears `current_percentage` before saving the latest calculated row.
+- Keeps historical hourly rows in `current_percentage`; updates the same hour in place.

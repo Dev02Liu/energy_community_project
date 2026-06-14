@@ -72,7 +72,7 @@ This section maps the lecturer's grading-risk comments to the current implementa
 | Usage Service calculation | Aggregate by hour; community pool first; overflow to grid | `HourlyUsageUpdateService` buckets to hour and updates `communityProduced`, `communityUsed`, `gridUsed` | Implemented | Verified end-to-end against the spec example through RabbitMQ and the DB. |
 | Usage Service persistence | Writes usage table in PostgreSQL | JPA entity/repository for `hourly_usage`; Flyway `V1__create_energy_tables.sql`; Hibernate `ddl-auto=validate` | Implemented | Fresh Docker PostgreSQL smoke evidence is recorded; repeat `docs/smoke-test.md` before hand-in. |
 | Percentage Service calculation | Calculate current community depleted and grid portion | `CurrentPercentageCalculationService` computes `communityUsed / produced * 100` and `gridUsed / totalUsed * 100`, then rounds persisted values to two decimals | Implemented | Formula and rounding documented in `docs/database-schema.md`. |
-| Percentage persistence | Writes current percentage table | Service clears `current_percentage` and saves the latest calculated row | Implemented | REST and GUI display the latest calculated percentage values. |
+| Percentage persistence | Writes current percentage table | Service saves one `current_percentage` row per hour; the same hour is updated in place | Implemented | REST and GUI display the newest calculated percentage values. |
 | REST current endpoint | `GET /energy/current` returns current percentage data | Reads the latest `current_percentage` row from DB; fallback returns zeros | Implemented | Newest row is selected via `findFirstByOrderByHourDesc()`. |
 | REST historical endpoint | `GET /energy/historical?start=...&end=...` returns usage for period | Reads `hourly_usage` by date range; `start`/`end` bind to `LocalDateTime`, so an invalid date returns 400 | Implemented | A reversed range returns an empty list. |
 | JavaFX GUI | REST-only dashboard with current and historical display | Split into `view` (FXML), `app`, `controller`, `client`, and `dto`; uses async HTTP and `Platform.runLater` | Implemented | Date range is selected via a `DatePicker` and an hour `ComboBox` (0–23, fixed in code, no DB coupling); errors are shown in the UI. |
@@ -164,13 +164,13 @@ app.scheduling.fixed-delay-ms=1000
 
 ## current_percentage Table Semantics
 
-**Chosen behavior: the table stores the latest calculated percentage row.**
+**Chosen behavior: the table stores one calculated percentage row per hour.**
 
 ### Rationale
 
-The `percentage-service` receives an update event carrying the hour and the full hourly snapshot (`communityProduced`, `communityUsed`, `gridUsed`), calculates the two percentages from the message, clears `current_percentage`, and saves one row for that calculated hour. It does not read the `hourly_usage` table. `GET /energy/current` reads the newest row and returns zeros if no percentage data exists.
+The `percentage-service` receives an update event carrying the hour and the full hourly snapshot (`communityProduced`, `communityUsed`, `gridUsed`), calculates the two percentages from the message, and saves one row for that calculated hour. It does not read the `hourly_usage` table. `GET /energy/current` reads the newest row and returns zeros if no percentage data exists.
 
-This keeps the REST/GUI display simple: there is only one current display value to explain.
+This keeps hourly percentage history while the REST/GUI current display still uses the newest row.
 
 ### Invariants enforced by design
 
