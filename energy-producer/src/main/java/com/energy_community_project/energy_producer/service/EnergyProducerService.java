@@ -16,15 +16,21 @@ public class EnergyProducerService {
     private final WeatherClient weatherClient;
     private final WeatherProductionCalculator productionCalculator;
     private final String queueName;
+    private final String messageType;
+    private final String association;
 
     public EnergyProducerService(RabbitTemplate rabbitTemplate,
                                  WeatherClient weatherClient,
                                  WeatherProductionCalculator productionCalculator,
-                                 @Value("${app.queue.name}") String queueName) {
+                                 @Value("${app.queue.name}") String queueName,
+                                 @Value("${app.message.type}") String messageType,
+                                 @Value("${app.message.association}") String association) {
         this.rabbitTemplate = rabbitTemplate;
         this.weatherClient = weatherClient;
         this.productionCalculator = productionCalculator;
         this.queueName = queueName;
+        this.messageType = messageType;
+        this.association = association;
     }
 
     public void publishProductionData() {
@@ -38,8 +44,8 @@ public class EnergyProducerService {
         double solarRadiation = weatherClient.currentSolarRadiation();
         double producedKwh = productionCalculator.calculateKwh(solarRadiation);
         EnergyMessage msg = new EnergyMessage();
-        msg.setType("PRODUCER");
-        msg.setAssociation("COMMUNITY");
+        msg.setType(messageType);
+        msg.setAssociation(association);
         msg.setKwh(producedKwh);
         msg.setDatetime(LocalDateTime.now());
         return msg;

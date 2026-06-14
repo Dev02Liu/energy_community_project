@@ -15,13 +15,22 @@ public class EnergyUserService {
     private final EnergyUsageCalculator usageCalculator;
     private final Random random = new Random();
     private final String queueName;
+    private final String messageType;
+    private final String association;
+    private final double variationKwh;
 
     public EnergyUserService(RabbitTemplate rabbitTemplate,
                              EnergyUsageCalculator usageCalculator,
-                             @Value("${app.queue.name}") String queueName) {
+                             @Value("${app.queue.name}") String queueName,
+                             @Value("${app.message.type}") String messageType,
+                             @Value("${app.message.association}") String association,
+                             @Value("${app.usage.variation-kwh}") double variationKwh) {
         this.rabbitTemplate = rabbitTemplate;
         this.usageCalculator = usageCalculator;
         this.queueName = queueName;
+        this.messageType = messageType;
+        this.association = association;
+        this.variationKwh = variationKwh;
     }
 
     public void publishUsageData() {
@@ -33,11 +42,11 @@ public class EnergyUserService {
 
     public EnergyMessage createUsageMessage() {
         LocalDateTime now = LocalDateTime.now();
-        double usedKwh = usageCalculator.calculateKwh(now, random.nextDouble() * 0.002);
+        double usedKwh = usageCalculator.calculateKwh(now, random.nextDouble() * variationKwh);
 
         EnergyMessage msg = new EnergyMessage();
-        msg.setType("USER");
-        msg.setAssociation("COMMUNITY");
+        msg.setType(messageType);
+        msg.setAssociation(association);
         msg.setKwh(usedKwh);
         msg.setDatetime(now);
         return msg;

@@ -1,6 +1,7 @@
 package com.energy_community_project.energy_producer.scheduling;
 
 import com.energy_community_project.energy_producer.service.EnergyProducerService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -11,9 +12,12 @@ public class EnergyProducerScheduler {
 
     private final EnergyProducerService energyProducerService;
     private final Random random = new Random();
+    private final int maxRandomDelayMs;
 
-    public EnergyProducerScheduler(EnergyProducerService energyProducerService) {
+    public EnergyProducerScheduler(EnergyProducerService energyProducerService,
+                                   @Value("${app.scheduling.max-random-delay-ms}") int maxRandomDelayMs) {
         this.energyProducerService = energyProducerService;
+        this.maxRandomDelayMs = maxRandomDelayMs;
     }
 
     @Scheduled(
@@ -22,7 +26,7 @@ public class EnergyProducerScheduler {
     )
     public void sendProductionData() {
         try {
-            Thread.sleep(random.nextInt(4000));
+            Thread.sleep(random.nextInt(maxRandomDelayMs));
             energyProducerService.publishProductionData();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
