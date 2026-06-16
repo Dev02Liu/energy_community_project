@@ -219,17 +219,14 @@ Current response fields:
 }
 ```
 
-Historical response fields:
+Historical response fields (aggregated totals over the requested range):
 
 ```json
-[
-  {
-    "hour": "2026-05-16T10:00",
-    "communityProduced": 18.05,
-    "communityUsed": 18.05,
-    "gridUsed": 1.076
-  }
-]
+{
+  "communityProduced": 18.05,
+  "communityUsed": 18.05,
+  "gridUsed": 1.076
+}
 ```
 
 ## RabbitMQ Topology

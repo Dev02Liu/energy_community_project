@@ -112,9 +112,9 @@ SELECT * FROM current_percentage ORDER BY hour DESC LIMIT 10;
 ## REST Checks
 
 - [ ] `GET http://localhost:8080/energy/current` returns JSON.
-- [ ] `GET http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59` returns JSON array.
+- [ ] `GET http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59` returns the aggregated totals JSON object.
 - [ ] Invalid date format returns `400 Bad Request`.
-- [ ] A reversed range (`start` after `end`) returns an empty array.
+- [ ] A reversed range (`start` after `end`) returns `400 Bad Request`.
 
 ## Git And Team Evidence
 

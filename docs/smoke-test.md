@@ -267,17 +267,14 @@ Call historical data. Adjust the date to the current demo date if needed:
 curl "http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59"
 ```
 
-Expected shape:
+Expected shape (aggregated totals over the range, not per-hour rows):
 
 ```json
-[
-  {
-    "hour": "2026-05-16T11:00",
-    "communityProduced": 228.525,
-    "communityUsed": 36.633326434041905,
-    "gridUsed": 4.404378895368673
-  }
-]
+{
+  "communityProduced": 228.525,
+  "communityUsed": 36.633326434041905,
+  "gridUsed": 4.404378895368673
+}
 ```
 
 Inverted range check (`start` after `end`):
@@ -289,14 +286,12 @@ curl -i "http://localhost:8080/energy/historical?start=2026-05-17T00:00:00&end=2
 Expected:
 
 ```text
-HTTP/1.1 200
-[]
+HTTP/1.1 400
 ```
 
-The REST API does not reject an inverted range; `findByHourBetween` simply returns no
-rows, so the response is `HTTP 200` with an empty array. The `start`-after-`end` guard
-lives in the JavaFX GUI ([EnergyDashboardController.loadHistoricalUsage](../energy-gui/src/main/java/com/energy_community_project/gui/controller/EnergyDashboardController.java)),
-which blocks the call client-side before it reaches the API.
+`EnergyReadService` rejects an inverted range with `400 Bad Request`. The JavaFX GUI
+([EnergyDashboardController.loadHistoricalUsage](../energy-gui/src/main/java/com/energy_community_project/gui/controller/EnergyDashboardController.java))
+additionally blocks it client-side before the call reaches the API.
 
 ## 8. JavaFX GUI Verification
 
@@ -316,12 +311,7 @@ Start: 2026-05-16T00:00:00
 End:   2026-05-16T23:59:59
 ```
 
-or, if using the German input format:
-
-```text
-Start: 16.05.2026 00:00
-End:   16.05.2026 23:59
-```
+The range is chosen with the `DatePicker` (calendar) and the hour `ComboBox`; the GUI combines them and sends ISO datetimes to the REST API.
 
 6. Click the historical/show-data action.
 7. Verify that the GUI displays:

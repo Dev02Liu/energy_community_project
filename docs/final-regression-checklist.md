@@ -165,9 +165,9 @@ curl "http://localhost:8080/energy/historical?start=not-a-date&end=also-bad"   #
 
 - [ ] `GET /energy/current` returns JSON backed by `current_percentage` (values change as the
       backend runs — not static).
-- [ ] `GET /energy/historical?start=...&end=...` returns a JSON array backed by `hourly_usage`.
+- [ ] `GET /energy/historical?start=...&end=...` returns the aggregated totals (JSON object) backed by `hourly_usage`.
 - [ ] Cross-check: REST `current` values equal the latest `current_percentage` DB row.
-- [ ] Invalid date format returns `400 Bad Request`; a reversed range (`start` after `end`) returns an empty array.
+- [ ] Invalid date format returns `400 Bad Request`; a reversed range (`start` after `end`) returns `400 Bad Request`.
 
 ---
 

@@ -152,16 +152,12 @@ Historical data:
 curl "http://localhost:8080/energy/historical?start=2026-05-16T00:00:00&end=2026-05-16T23:59:59"
 ```
 
-The historical endpoint also accepts German GUI format:
-
-```powershell
-curl "http://localhost:8080/energy/historical?start=16.05.2026+00%3A00&end=16.05.2026+23%3A59"
-```
+The historical endpoint expects ISO local datetime values (the GUI sends them in this format).
 
 Expected error cases:
 
 - Invalid date format -> `400 Bad Request`
-- `start` after `end` -> `200 OK` with an empty array `[]` (the REST API does not reject an inverted range; the `start`-after-`end` guard lives in the JavaFX GUI)
+- `start` after `end` -> `400 Bad Request` (`EnergyReadService` rejects an inverted range; the GUI additionally validates it before sending)
 
 ## Step 7 - Start GUI
 

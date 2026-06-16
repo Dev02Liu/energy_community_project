@@ -98,7 +98,7 @@ Every framework feature used was checked against the lecture transcripts and the
 - **energy-user**: magic consumption/multiplier/message values externalized to `application.properties` (`@Value`); queue + converter bean in `config/RabbitMqConfig`.
 - **usage-service**: community-pool-first usage logic with hourly bucketing; explicit `PRODUCER`/`USER` type handling (unknown types rejected with `IllegalArgumentException`); message types externalized via `@Value`; queue + converter beans in `config/RabbitMqConfig`.
 - **percentage-service**: `BigDecimal` rounding → `Math.round`; percentages calculated from the update message (no `hourly_usage` read); negative-kWh input validation; hour-keyed `save()` keeps one historical row per hour; listener logs and drops failing messages; queue + converter beans in `config/RabbitMqConfig`.
-- **rest-api**: `EnergyController` now binds `@RequestParam LocalDateTime` directly (lecture `ObservationController` style); manual date parsing and the `start>end` 400 guard removed (invalid date → Spring returns 400; reversed range → empty list).
+- **rest-api**: `EnergyController` now binds `@RequestParam LocalDateTime` directly (lecture `ObservationController` style); manual date parsing removed (invalid date → Spring returns 400). `EnergyReadService` aggregates the range into a `HistoricalSummaryDTO` and rejects a reversed range (`start>end`) with 400.
 - **energy-gui**: removed the generic `<T>` send helper and the custom `@FunctionalInterface` in `EnergyApiClient`; two straightforward request methods remain.
 
 Net effect: the cleanup passes removed well over **700 lines of production code**; this robustness pass

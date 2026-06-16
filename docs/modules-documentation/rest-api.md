@@ -26,7 +26,8 @@ It reads DB-backed data from PostgreSQL and does not calculate or write the core
 | `EnergyController` | Thin HTTP boundary: exposes `/energy/current` and `/energy/historical` and delegates to `EnergyReadService`. The `start`/`end` query parameters are bound directly to `LocalDateTime` (Spring parses them). |
 | `service/EnergyReadService` | Loads the data from the repositories and maps it to response DTOs, so the controller holds no data-access logic. |
 | `CurrentPercentageDTO` | Response DTO for current percentage data. |
-| `HistoricalUsageDTO` | Response DTO for historical hourly usage data. |
+| `HistoricalSummaryDTO` | Response DTO for `/energy/historical`: aggregated totals (community produced/used, grid used) over the range. |
+| `HistoricalUsageDTO` | Internal per-row mapping that the service sums into the summary; not returned to the client directly. |
 | `entity/CurrentPercentageEntity` | Read model for table `current_percentage`. |
 | `entity/HourlyUsageEntity` | Read model for table `hourly_usage`. |
 | `CurrentPercentageRepository` | Reads the latest percentage row. |
@@ -48,15 +49,15 @@ File: `rest-api/src/main/resources/application.properties`
 | Method | Path | Behavior |
 |---|---|---|
 | `GET` | `/energy/current` | Returns the latest row from `current_percentage`; returns zero values if no data exists. |
-| `GET` | `/energy/historical?start=...&end=...` | Returns rows from `hourly_usage` between `start` and `end`. |
+| `GET` | `/energy/historical?start=...&end=...` | Returns the aggregated totals (community produced/used, grid used) of the `hourly_usage` rows between `start` and `end`. |
 
 Accepted date formats for historical parameters:
 
 - ISO local datetime, for example `2026-05-16T00:00:00`.
 
 `start` and `end` are bound directly to `LocalDateTime` parameters, so Spring parses them and returns
-`400 Bad Request` for an invalid date format. A reversed range (`start` after `end`) simply returns an
-empty list.
+`400 Bad Request` for an invalid date format. A reversed range (`start` after `end`) is rejected by
+`EnergyReadService` with `400 Bad Request`.
 
 ## Runtime Flow
 
@@ -101,8 +102,8 @@ sequenceDiagram
     API->>SVC: getHistoricalData(start, end)
     SVC->>HU: find rows between start/end
     HU-->>SVC: hourly usage rows
-    SVC-->>API: HistoricalUsageDTO[]
-    API-->>GUI: HistoricalUsageDTO[]
+    SVC-->>API: HistoricalSummaryDTO
+    API-->>GUI: HistoricalSummaryDTO
 ```
 
 ## Start Command

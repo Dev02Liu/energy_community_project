@@ -24,10 +24,10 @@ It communicates only with the REST API over HTTP. It has no PostgreSQL, JPA, or 
 | `MainApp` | JavaFX launcher entry point configured in Maven. |
 | `app/EnergyGuiApplication` | Loads `energy-view.fxml` via `FXMLLoader`, injects the client through the controller factory, and shows the scene. |
 | `view/energy-view.fxml` | Declares the JavaFX layout (labels, buttons, `DatePicker`/`ComboBox`). Linked to the controller via `fx:controller`. |
-| `controller/EnergyDashboardController` | Handles `@FXML` button actions, fills the hour dropdowns, combines date/hour, aggregates historical rows (`summarize`), and updates labels. |
+| `controller/EnergyDashboardController` | Handles `@FXML` button actions, fills the hour dropdowns, combines date/hour, and updates labels from the REST responses. |
 | `client/EnergyApiClient` | HTTP client for REST API calls. |
 | `dto/CurrentPercentageDTO` | DTO for `/energy/current`. |
-| `dto/HistoricalUsageDTO` | DTO for `/energy/historical`. |
+| `dto/HistoricalSummaryDTO` | DTO for `/energy/historical`: aggregated totals returned by the REST API. |
 
 ## Configuration
 
@@ -51,12 +51,12 @@ Historical data:
 
 - User selects the start/end **date** from a `DatePicker` (calendar) and the **hour** (`00:00`–`23:00`) from a `ComboBox` dropdown. The hour list is fixed in code (0–23), not loaded from the database. The GUI combines date + hour into a `LocalDateTime` and sends it as ISO to the REST API.
 - Show-data button calls `GET /energy/historical?start=...&end=...`.
-- GUI sums returned hourly rows and displays aggregate labels:
+- The REST API returns the aggregated totals for the range, which the GUI displays as labels:
   - community produced,
   - community used,
   - grid used.
 
-Current implementation note: historical rows are not displayed in a `TableView`; they are aggregated into labels.
+Current implementation note: the totals are aggregated server-side by the REST API and shown as labels, not in a `TableView`.
 
 ## Runtime Flow
 
@@ -67,7 +67,7 @@ flowchart LR
     Client["EnergyApiClient<br/>Java HttpClient"]
     API["REST API<br/>localhost:8080"]
     CurrentDTO["CurrentPercentageDTO"]
-    HistoryDTO["HistoricalUsageDTO[]"]
+    HistoryDTO["HistoricalSummaryDTO"]
     Labels["JavaFX Labels"]
 
     User --> Controller
@@ -100,11 +100,11 @@ sequenceDiagram
 
     U->>C: enter range and click show data
     C->>C: validate date range
-    C->>A: fetchHistoricalUsage(start, end)
+    C->>A: fetchHistoricalData(start, end)
     A->>R: GET /energy/historical
-    R-->>A: HistoricalUsageDTO[]
+    R-->>A: HistoricalSummaryDTO
     A-->>C: CompletableFuture result
-    C->>UI: sum rows and update historical labels
+    C->>UI: update historical labels from summary
 ```
 
 ## Start Command
